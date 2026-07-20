@@ -6,6 +6,7 @@ import {
 } from '@phosphor-icons/react'
 import type { CharacterVoice, ContentLocale, DashboardSnapshot, DiagnosticEvent, EnqueueJobInput, Job, JobDetails, ModelTestKind, ModelTestResult, Platform, ProjectStage, SaveSettingsInput, VoicePresetId } from '@shared/domain'
 import { VOICE_PRESETS, voicePreset } from '@shared/voices'
+import brandIconUrl from '../../../assets/branding/lumaworks-icons/source/dock.png?url'
 import { MediaViewer, type MediaPreview } from './MediaViewer'
 
 type View = 'studio' | 'publish' | 'settings'
@@ -64,7 +65,7 @@ export function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="traffic-space" />
-        <div className="brand"><div className="brand-mark">L</div><span>LumaWorks</span></div>
+        <div className="brand"><img className="brand-mark" src={brandIconUrl} alt="" /><span>LumaWorks</span></div>
         <nav className="main-nav" aria-label="主导航">
           <NavButton active={view === 'studio'} icon={<FilmReel />} label="制作台" onClick={() => setView('studio')} />
           <NavButton active={view === 'publish'} icon={<RocketLaunch />} label="投稿" onClick={() => setView('publish')} />

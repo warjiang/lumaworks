@@ -53,16 +53,34 @@
       "node_modules/better-sqlite3/**",
       "node_modules/ffmpeg-static/**"
     ],
+    "extraResources": [
+      {
+        "from": "assets/branding/lumaworks-icons/source/dock.png",
+        "to": "icons/AppIcon.png"
+      },
+      {
+        "from": "assets/branding/lumaworks-icons/macos/MenuBarIconTemplate.png",
+        "to": "icons/MenuBarIconTemplate.png"
+      },
+      {
+        "from": "assets/branding/lumaworks-icons/macos/MenuBarIconTemplate@2x.png",
+        "to": "icons/MenuBarIconTemplate@2x.png"
+      }
+    ],
     "files": [
       "out/**",
       "node_modules/**",
       "package.json"
     ],
     "mac": {
+      "icon": "assets/branding/lumaworks-icons/macos/AppIcon.icns",
       "category": "public.app-category.video",
       "target": ["dmg", "zip"],
       "hardenedRuntime": true,
       "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "icon": "assets/branding/lumaworks-icons/windows/desktop/app.ico"
     },
     "dmg": {
       "artifactName": "${productName}-${version}-${arch}.${ext}"
