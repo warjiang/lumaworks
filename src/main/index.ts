@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, net, protocol, safeStorage, shell, Tray } from 'electron'
 import { pathToFileURL } from 'node:url'
 import { createProjectInputSchema, enqueueJobInputSchema, modelTestKindSchema, publishDraftInputSchema, rendererErrorSchema, saveSettingsInputSchema, updateCharacterVoiceSchema, type ContentLocale, type DiagnosticLevel, type Platform, type SystemEventFilters } from '@shared/domain'
 import { IPC } from '@shared/ipc'
@@ -24,6 +24,7 @@ let database: AppDatabase | null = null
 let runner: JobRunner | null = null
 let diagnostics: DiagnosticsService | null = null
 let diagnosticsTimer: NodeJS.Timeout | null = null
+let tray: Tray | null = null
 let selectedProjectId: string | undefined
 
 const DEFAULT_SPEECH_VOICE_ID = 'zh_female_vv_uranus_bigtts'
@@ -38,14 +39,49 @@ function speechVoiceId(secrets: SecretStore): string {
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'luma-media', privileges: { secure: true, standard: true, supportFetchAPI: true, corsEnabled: true, stream: true } }])
 
+function runtimeIconPath(kind: 'app' | 'tray'): string {
+  if (app.isPackaged) return join(process.resourcesPath, 'icons', kind === 'app' ? 'AppIcon.png' : 'MenuBarIconTemplate.png')
+  const root = join(app.getAppPath(), 'assets', 'branding', 'lumaworks-icons')
+  return kind === 'app' ? join(root, 'source', 'dock.png') : join(root, 'macos', 'MenuBarIconTemplate.png')
+}
+
+function showMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) mainWindow = createWindow()
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.show()
+  mainWindow.focus()
+}
+
+function configureRuntimeIcons(): void {
+  const appIcon = nativeImage.createFromPath(runtimeIconPath('app'))
+  if (appIcon.isEmpty()) throw new Error('无法加载 LumaWorks 应用图标')
+  if (process.platform === 'darwin') app.dock?.setIcon(appIcon)
+
+  const trayIcon = process.platform === 'darwin'
+    ? nativeImage.createFromPath(runtimeIconPath('tray'))
+    : appIcon.resize({ width: 32, height: 32 })
+  if (trayIcon.isEmpty()) throw new Error('无法加载 LumaWorks 状态栏图标')
+  if (process.platform === 'darwin') trayIcon.setTemplateImage(true)
+  tray = new Tray(trayIcon)
+  tray.setToolTip('LumaWorks')
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '显示 LumaWorks', click: showMainWindow },
+    { type: 'separator' },
+    { label: '退出 LumaWorks', click: () => app.quit() },
+  ]))
+  tray.on('click', showMainWindow)
+}
+
 function createWindow(): BrowserWindow {
   const window = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1120, minHeight: 720, titleBarStyle: 'hiddenInset', backgroundColor: '#111214',
+    icon: runtimeIconPath('app'),
     webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false },
   })
   if (process.env.ELECTRON_RENDERER_URL) void window.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void window.loadFile(join(__dirname, '../renderer/index.html'))
   window.webContents.setWindowOpenHandler(({ url }) => { void shell.openExternal(url); return { action: 'deny' } })
+  window.on('closed', () => { if (mainWindow === window) mainWindow = null })
   return window
 }
 
@@ -163,13 +199,14 @@ app.whenReady().then(() => {
   const publishers = new PublisherRegistry(secrets, join(root, 'diagnostics')); const oauth = new OAuthService(secrets); runner = new JobRunner(database, diagnostics)
   registerPipelineHandlers({ db: database, runner, ark, speech, media, renderer: new FfmpegRenderer(), publishers })
   registerIpc(database, runner, diagnostics, secrets, publishers, oauth, new ProviderTester(ark, speech, media, settings, diagnostics), media, speech)
+  try { configureRuntimeIcons() } catch (error) { diagnostics.log({ level: 'error', phase: 'app.icons', scope: 'app', message: error instanceof Error ? error.message : String(error) }) }
   mainWindow = createWindow(); runner.on('job', (job) => mainWindow?.webContents.send(IPC.jobEvent, job)); diagnostics.on('event', (event) => mainWindow?.webContents.send(IPC.diagnosticEvent, event)); runner.start()
   diagnosticsTimer = setInterval(() => { if (runner?.isIdle()) { const result = diagnostics?.cleanup(); if (result?.deleted) database?.compactDiagnostics() } }, 24 * 60 * 60 * 1_000)
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow() })
+  app.on('activate', showMainWindow)
 })
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })
 process.on('unhandledRejection', (reason) => diagnostics?.log({ level: 'error', scope: 'app', phase: 'process.unhandled_rejection', message: reason instanceof Error ? reason.message : String(reason), details: { stack: reason instanceof Error ? reason.stack : undefined } }))
 process.on('uncaughtException', (error) => diagnostics?.log({ level: 'error', scope: 'app', phase: 'process.uncaught_exception', message: error.message, details: { stack: error.stack } }))
 
-app.on('before-quit', () => { diagnostics?.log({ phase: 'app.quit', scope: 'app', message: 'LumaWorks 正在退出' }); if (diagnosticsTimer) clearInterval(diagnosticsTimer); runner?.stop() })
+app.on('before-quit', () => { diagnostics?.log({ phase: 'app.quit', scope: 'app', message: 'LumaWorks 正在退出' }); if (diagnosticsTimer) clearInterval(diagnosticsTimer); tray?.destroy(); tray = null; runner?.stop() })

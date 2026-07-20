@@ -1,7 +1,18 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import appleTouchIconUrl from '../../../assets/branding/lumaworks-icons/web/apple-touch-icon.png?url'
+import faviconUrl from '../../../assets/branding/lumaworks-icons/web/favicon-32x32.png?url'
 import { App } from './App'
 import './styles.css'
+
+for (const icon of [
+  { rel: 'icon', type: 'image/png', sizes: '32x32', href: faviconUrl },
+  { rel: 'apple-touch-icon', type: 'image/png', sizes: '180x180', href: appleTouchIconUrl },
+]) {
+  const link = document.createElement('link')
+  Object.assign(link, icon)
+  document.head.append(link)
+}
 
 const report = (error: unknown, source: string): void => {
   const value = error instanceof Error ? error : new Error(String(error))
