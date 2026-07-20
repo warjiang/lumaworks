@@ -1,0 +1,18 @@
+<!-- Merge this fragment into the matching sections of AppxManifest.xml. -->
+<Properties>
+  <Logo>Assets\StoreLogo.png</Logo>
+</Properties>
+<uap:VisualElements
+  DisplayName="LumaWorks"
+  Description="Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing"
+  BackgroundColor="#111214"
+  Square44x44Logo="Assets\Square44x44Logo.png"
+  Square150x150Logo="Assets\Square150x150Logo.png">
+  <uap:DefaultTile
+    Square71x71Logo="Assets\Square71x71Logo.png"
+    Wide310x150Logo="Assets\Wide310x150Logo.png"
+    Square310x310Logo="Assets\Square310x310Logo.png" />
+  <uap:SplashScreen
+    Image="Assets\SplashScreen.png"
+    BackgroundColor="#111214" />
+</uap:VisualElements>

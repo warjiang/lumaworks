@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-07-20T01:11:41.783759+00:00",
+  "brief": {
+    "app_name": "LumaWorks",
+    "purpose": "Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing",
+    "concept": "A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon",
+    "style": "Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels",
+    "palette": "charcoal black, warm coral #E9684B, warm ivory #E9E7E2",
+    "solid_color": "#111214"
+  },
+  "generation": {
+    "endpoint": "https://byte.haoduotoken.com/v1/images/generations",
+    "model": "gpt-image-2",
+    "size": "1024x1024",
+    "quality": "high",
+    "chroma_color": "#FF00FF",
+    "chroma_tolerance": 72
+  },
+  "candidates": [
+    {
+      "number": 1,
+      "path": "candidates/candidate-1.png",
+      "direction": "Bold geometric silhouette with memorable negative space and the fewest possible shapes.",
+      "prompt": "App: LumaWorks. Purpose: Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing. Core symbol: A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon. Visual style: Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels. Palette: charcoal black, warm coral #E9684B, warm ivory #E9E7E2. Create a distinctive, original product icon with simple geometry, excellent silhouette, clear hierarchy, no letters, no words, no watermark, no device mockup, and no UI screenshot. Candidate direction 1: Bold geometric silhouette with memorable negative space and the fewest possible shapes. Render only one standalone brand symbol, centered and front-facing, with no enclosing app tile and no cast shadow. Keep all visible artwork within the central 72 percent of a square canvas. The entire background, including every edge and corner, must be one perfectly uniform flat chroma color #FF00FF. Do not use that chroma color inside the icon. ",
+      "sha256": "bb9d8bb4a65ae7930f02ac325287dab23b9a988cef353db3fa423056c652381c"
+    },
+    {
+      "number": 2,
+      "path": "candidates/candidate-2.png",
+      "direction": "Friendly dimensional symbol with soft proportions, restrained depth, and a warm product character.",
+      "prompt": "App: LumaWorks. Purpose: Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing. Core symbol: A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon. Visual style: Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels. Palette: charcoal black, warm coral #E9684B, warm ivory #E9E7E2. Create a distinctive, original product icon with simple geometry, excellent silhouette, clear hierarchy, no letters, no words, no watermark, no device mockup, and no UI screenshot. Candidate direction 2: Friendly dimensional symbol with soft proportions, restrained depth, and a warm product character. Render only one standalone brand symbol, centered and front-facing, with no enclosing app tile and no cast shadow. Keep all visible artwork within the central 72 percent of a square canvas. The entire background, including every edge and corner, must be one perfectly uniform flat chroma color #FF00FF. Do not use that chroma color inside the icon. ",
+      "sha256": "abddfe78ceee04d3b5b12d76c47ab08af9ca4a6bad42663ec8365c89c14de6b2"
+    },
+    {
+      "number": 3,
+      "path": "candidates/candidate-3.png",
+      "direction": "Precise modular emblem built from a clear grid, balanced symmetry, and crisp contemporary geometry.",
+      "prompt": "App: LumaWorks. Purpose: Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing. Core symbol: A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon. Visual style: Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels. Palette: charcoal black, warm coral #E9684B, warm ivory #E9E7E2. Create a distinctive, original product icon with simple geometry, excellent silhouette, clear hierarchy, no letters, no words, no watermark, no device mockup, and no UI screenshot. Candidate direction 3: Precise modular emblem built from a clear grid, balanced symmetry, and crisp contemporary geometry. Render only one standalone brand symbol, centered and front-facing, with no enclosing app tile and no cast shadow. Keep all visible artwork within the central 72 percent of a square canvas. The entire background, including every edge and corner, must be one perfectly uniform flat chroma color #FF00FF. Do not use that chroma color inside the icon. ",
+      "sha256": "3bc1cba8dbb0f9a77a52906a849cd5e1e28ef979b4e2acdd6705002d1366d487"
+    },
+    {
+      "number": 4,
+      "path": "candidates/candidate-4.png",
+      "direction": "Expressive minimal mark with an unexpected visual metaphor, dynamic balance, and strong motion.",
+      "prompt": "App: LumaWorks. Purpose: Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing. Core symbol: A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon. Visual style: Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels. Palette: charcoal black, warm coral #E9684B, warm ivory #E9E7E2. Create a distinctive, original product icon with simple geometry, excellent silhouette, clear hierarchy, no letters, no words, no watermark, no device mockup, and no UI screenshot. Candidate direction 4: Expressive minimal mark with an unexpected visual metaphor, dynamic balance, and strong motion. Render only one standalone brand symbol, centered and front-facing, with no enclosing app tile and no cast shadow. Keep all visible artwork within the central 72 percent of a square canvas. The entire background, including every edge and corner, must be one perfectly uniform flat chroma color #FF00FF. Do not use that chroma color inside the icon. ",
+      "sha256": "abf54d2aa2a200249af7fa59d17aaacf8ed71661714246d2d8627c48020e710a"
+    }
+  ],
+  "status": "awaiting_user_selection"
+}

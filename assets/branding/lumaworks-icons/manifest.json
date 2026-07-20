@@ -1,0 +1,1673 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-20T01:15:34.617644+00:00",
+  "brief": {
+    "app_name": "LumaWorks",
+    "purpose": "Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing",
+    "concept": "A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon",
+    "style": "Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels",
+    "palette": "charcoal black, warm coral #E9684B, warm ivory #E9E7E2",
+    "solid_color": "#111214"
+  },
+  "generation": {
+    "endpoint": "https://byte.haoduotoken.com/v1/images/generations",
+    "model": "gpt-image-2",
+    "size": "1024x1024",
+    "quality": "high",
+    "prompts": {
+      "dock": "App: LumaWorks. Purpose: Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing. Core symbol: A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon. Visual style: Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels. Palette: charcoal black, warm coral #E9684B, warm ivory #E9E7E2. Create a distinctive, original product icon with simple geometry, excellent silhouette, clear hierarchy, no letters, no words, no watermark, no device mockup, and no UI screenshot. Continue the selected visual direction: Bold geometric silhouette with memorable negative space and the fewest possible shapes. Render a polished macOS Dock app icon: a refined rounded-square object with restrained depth and material detail. Keep the icon and any soft shadow within the central 88 percent of a square canvas. The area outside the icon is chroma. The entire background, including every edge and corner, must be one perfectly uniform flat chroma color #FF00FF. Do not use that chroma color inside the icon. ",
+      "menu": "App: LumaWorks. Purpose: Local-first AI short-drama production studio for story development, vertical-shot review, video generation, role voice, captions, rendering, and publishing. Core symbol: A luminous portrait-format cinematic frame formed by two confident editing cuts, suggesting a continuous production timeline and controlled transformation from shot to finished film; no letters, no text, no generic camera or play-button icon. Visual style: Restrained, professional, cinematic, geometric, production-tool precision, bold silhouette, minimal details, recognizable at 16 pixels. Palette: charcoal black, warm coral #E9684B, warm ivory #E9E7E2. Create a distinctive, original product icon with simple geometry, excellent silhouette, clear hierarchy, no letters, no words, no watermark, no device mockup, and no UI screenshot. Continue the selected visual direction: Bold geometric silhouette with memorable negative space and the fewest possible shapes. Render a minimal one-color black linear symbol for a macOS menu bar. Use consistent medium-weight strokes, no gradients, no shading, no enclosing tile, no filled background, and very few details. Keep the line symbol within the central 76 percent of a square canvas. The entire background, including every edge and corner, must be one perfectly uniform flat chroma color #FF00FF. Do not use that chroma color inside the icon. "
+    }
+  },
+  "selection": {
+    "number": 1,
+    "path": "candidates/candidate-1.png",
+    "direction": "Bold geometric silhouette with memorable negative space and the fewest possible shapes.",
+    "sha256": "bb9d8bb4a65ae7930f02ac325287dab23b9a988cef353db3fa423056c652381c"
+  },
+  "warnings": [],
+  "files": [
+    {
+      "path": "candidate-preview.png",
+      "bytes": 148882,
+      "sha256": "ae856aab31d37745305d8fb8e316fb234e537e70376bdde1e406aa09e7477dca",
+      "width": 1280,
+      "height": 760,
+      "format": "PNG"
+    },
+    {
+      "path": "candidates/candidate-1.png",
+      "bytes": 333886,
+      "sha256": "bb9d8bb4a65ae7930f02ac325287dab23b9a988cef353db3fa423056c652381c",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "candidates/candidate-2.png",
+      "bytes": 533178,
+      "sha256": "abddfe78ceee04d3b5b12d76c47ab08af9ca4a6bad42663ec8365c89c14de6b2",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "candidates/candidate-3.png",
+      "bytes": 409997,
+      "sha256": "3bc1cba8dbb0f9a77a52906a849cd5e1e28ef979b4e2acdd6705002d1366d487",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "candidates/candidate-4.png",
+      "bytes": 414439,
+      "sha256": "abf54d2aa2a200249af7fa59d17aaacf8ed71661714246d2d8627c48020e710a",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.icns",
+      "bytes": 1865492,
+      "sha256": "9783e66d2e28ec8f7411d05fdcbfc056e312722ba6dea5f6ee11ce6d440c4fcc",
+      "width": 1024,
+      "height": 1024,
+      "format": "ICNS"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_128x128.png",
+      "bytes": 16555,
+      "sha256": "9259d9735012ea386b4d92f3213c656bb83c1ea7cc3401ebc1828b8a018efe13",
+      "width": 128,
+      "height": 128,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_128x128@2x.png",
+      "bytes": 55158,
+      "sha256": "087336da9160f76aa243bc08099643616723806af8d5de919e73ebae23c1a3a2",
+      "width": 256,
+      "height": 256,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_16x16.png",
+      "bytes": 713,
+      "sha256": "cfba3b09357acf24e22c49bd2246c4c1717e782e97561d5382ecd1fa0ec3a471",
+      "width": 16,
+      "height": 16,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_16x16@2x.png",
+      "bytes": 1889,
+      "sha256": "6ee55f5511e4d23b6ff3d7ebc045e8bb993e213f2ee5ed1cf942a69caecb2cf9",
+      "width": 32,
+      "height": 32,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_256x256.png",
+      "bytes": 55158,
+      "sha256": "087336da9160f76aa243bc08099643616723806af8d5de919e73ebae23c1a3a2",
+      "width": 256,
+      "height": 256,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_256x256@2x.png",
+      "bytes": 222355,
+      "sha256": "2f258a0660f7e3253c276a2f85d766d609be67b18e8214df37f3f466328e2b05",
+      "width": 512,
+      "height": 512,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_32x32.png",
+      "bytes": 1889,
+      "sha256": "6ee55f5511e4d23b6ff3d7ebc045e8bb993e213f2ee5ed1cf942a69caecb2cf9",
+      "width": 32,
+      "height": 32,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_32x32@2x.png",
+      "bytes": 5479,
+      "sha256": "32714f4ffe5f421a16ac2271346142fdb5e1d6183f11607901da9b8c01350b46",
+      "width": 64,
+      "height": 64,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_512x512.png",
+      "bytes": 222355,
+      "sha256": "2f258a0660f7e3253c276a2f85d766d609be67b18e8214df37f3f466328e2b05",
+      "width": 512,
+      "height": 512,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/AppIcon.iconset/icon_512x512@2x.png",
+      "bytes": 881888,
+      "sha256": "dbf477edc769c9c4504a04df5695f2ab8a19fd7cccbdce71edcd702f2f54b552",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/MenuBarIconTemplate.png",
+      "bytes": 384,
+      "sha256": "f6e8c16ad683ca643570ca6097f9eef4491371b04e3e585b75f6bbe717357436",
+      "width": 18,
+      "height": 18,
+      "format": "PNG"
+    },
+    {
+      "path": "macos/MenuBarIconTemplate@2x.png",
+      "bytes": 815,
+      "sha256": "05dc4646cb2a581ba43c62d2e332b2d25fd8b573acce999367251a2ea0851180",
+      "width": 36,
+      "height": 36,
+      "format": "PNG"
+    },
+    {
+      "path": "preview.png",
+      "bytes": 135123,
+      "sha256": "a22e7b1a08222b45738a67387d81ed101f4ffd7fb926c6efc4e5a3a08470ff98",
+      "width": 1320,
+      "height": 760,
+      "format": "PNG"
+    },
+    {
+      "path": "selection.json",
+      "bytes": 7494,
+      "sha256": "ec2f8ecfaf77b97b60fed82659c0d8cc938d19ccf39b45944df1908b45face2b"
+    },
+    {
+      "path": "source/base-solid.png",
+      "bytes": 331398,
+      "sha256": "1af8b9771e7fdf79ea36faafc01b3f61d7de4473e9742fc312b0e30f9f7148ed",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "source/base-transparent.png",
+      "bytes": 333886,
+      "sha256": "bb9d8bb4a65ae7930f02ac325287dab23b9a988cef353db3fa423056c652381c",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "source/dock.png",
+      "bytes": 881888,
+      "sha256": "dbf477edc769c9c4504a04df5695f2ab8a19fd7cccbdce71edcd702f2f54b552",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "source/menu-linear.png",
+      "bytes": 39223,
+      "sha256": "0a78a8d16536fec9ba793326864128428feae5e701083e7245c5a8272808b06b",
+      "width": 1024,
+      "height": 1024,
+      "format": "PNG"
+    },
+    {
+      "path": "web/apple-touch-icon.png",
+      "bytes": 13991,
+      "sha256": "7993a96a4fcde28e0d86d3eb2ccaba5517d9851b26ddfa466a39859463904519",
+      "width": 180,
+      "height": 180,
+      "format": "PNG"
+    },
+    {
+      "path": "web/favicon-16x16.png",
+      "bytes": 545,
+      "sha256": "c0e08d02306e459d9531489e303e697a554cb194d11f12ec415bbc2cced04cae",
+      "width": 16,
+      "height": 16,
+      "format": "PNG"
+    },
+    {
+      "path": "web/favicon-32x32.png",
+      "bytes": 1178,
+      "sha256": "1b3c6c50c1ffd5dc748b48fd12607cc2ebb2264fdc1518f62b7e30cd9942f276",
+      "width": 32,
+      "height": 32,
+      "format": "PNG"
+    },
+    {
+      "path": "web/favicon.ico",
+      "bytes": 3859,
+      "sha256": "6402c7a051b704db8fc1fb1d78d11c9032cfbffb59bc56d9eca049fe2baae924",
+      "width": 48,
+      "height": 48,
+      "format": "ICO"
+    },
+    {
+      "path": "web/icon-192.png",
+      "bytes": 15694,
+      "sha256": "aa516fe865376c2492641e3f654c0a7fc9ee55c5583a03605213d537bb6290fa",
+      "width": 192,
+      "height": 192,
+      "format": "PNG"
+    },
+    {
+      "path": "web/icon-512.png",
+      "bytes": 96235,
+      "sha256": "8ae1bb9e97713de02bde5a367bc79ff0a6b8b6aca90f7f7cc3e2ea8c162de045",
+      "width": 512,
+      "height": 512,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-128x128.png",
+      "bytes": 16555,
+      "sha256": "9259d9735012ea386b4d92f3213c656bb83c1ea7cc3401ebc1828b8a018efe13",
+      "width": 128,
+      "height": 128,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-16x16.png",
+      "bytes": 713,
+      "sha256": "cfba3b09357acf24e22c49bd2246c4c1717e782e97561d5382ecd1fa0ec3a471",
+      "width": 16,
+      "height": 16,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-20x20.png",
+      "bytes": 989,
+      "sha256": "2106cbdb5652a13e89bbd818da01073d57942e4fcf7f494e37fb40c4eca3eea0",
+      "width": 20,
+      "height": 20,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-24x24.png",
+      "bytes": 1275,
+      "sha256": "71f779f840bbc9bbcb3859bb72598bcffbb1930ff63f5652a8c5a3359f7cded6",
+      "width": 24,
+      "height": 24,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-256x256.png",
+      "bytes": 55158,
+      "sha256": "087336da9160f76aa243bc08099643616723806af8d5de919e73ebae23c1a3a2",
+      "width": 256,
+      "height": 256,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-32x32.png",
+      "bytes": 1889,
+      "sha256": "6ee55f5511e4d23b6ff3d7ebc045e8bb993e213f2ee5ed1cf942a69caecb2cf9",
+      "width": 32,
+      "height": 32,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-40x40.png",
+      "bytes": 2615,
+      "sha256": "0196f1f59305861de3fb7e6326653467b185d01622487dcf46861df2a18470e6",
+      "width": 40,
+      "height": 40,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-48x48.png",
+      "bytes": 3490,
+      "sha256": "b14f1f6920b411888cb3581f256a9919a8263ed868512b715be793316f2550e6",
+      "width": 48,
+      "height": 48,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-64x64.png",
+      "bytes": 5479,
+      "sha256": "32714f4ffe5f421a16ac2271346142fdb5e1d6183f11607901da9b8c01350b46",
+      "width": 64,
+      "height": 64,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-72x72.png",
+      "bytes": 6564,
+      "sha256": "60006d210cdb39ec396e4eeeb5ade172f62a315efd0824e363aa8c6a8b737224",
+      "width": 72,
+      "height": 72,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-80x80.png",
+      "bytes": 7797,
+      "sha256": "000191009480522020c02d640b868ccf622849822a43f4effa6b7829b05162c3",
+      "width": 80,
+      "height": 80,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app-96x96.png",
+      "bytes": 10511,
+      "sha256": "2468e963df6fbf13110fb426ffc0c55983b501fd1fc86b6df0719db990bb1f4b",
+      "width": 96,
+      "height": 96,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/desktop/app.ico",
+      "bytes": 120145,
+      "sha256": "d3f5bcaac8081b773e9e8e8dbd6ee34f27568dda334ebc9a905949cce067d560",
+      "width": 256,
+      "height": 256,
+      "format": "ICO"
+    },
+    {
+      "path": "windows/msix/AppxManifest.visual-assets.xml",
+      "bytes": 769,
+      "sha256": "b5eade10c7b40f76aab36632a39f381a8d3df8a936edae4801da709551458fe4"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-100.png",
+      "bytes": 549,
+      "sha256": "b68a49472bcc751cc73bc47c888f34735108db93fc70b2e2175f01259be07061",
+      "width": 24,
+      "height": 24,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 704,
+      "sha256": "6dac550cb5b0f2c7c089a6164a0982d2fa8135825b3279a6c0da62598d779e3c",
+      "width": 24,
+      "height": 24,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-100_altform-colorful_theme-light.png",
+      "bytes": 549,
+      "sha256": "b68a49472bcc751cc73bc47c888f34735108db93fc70b2e2175f01259be07061",
+      "width": 24,
+      "height": 24,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-125.png",
+      "bytes": 785,
+      "sha256": "cdbb901bd40d783866691448baf4ea3d673ddb419e18f16d70b405ab2d231b51",
+      "width": 30,
+      "height": 30,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 1001,
+      "sha256": "44864e415de94dc9748e8392a0fd18ea52a74e57fa9010cf31e339d406dd74be",
+      "width": 30,
+      "height": 30,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-125_altform-colorful_theme-light.png",
+      "bytes": 785,
+      "sha256": "cdbb901bd40d783866691448baf4ea3d673ddb419e18f16d70b405ab2d231b51",
+      "width": 30,
+      "height": 30,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-150.png",
+      "bytes": 1013,
+      "sha256": "e19dd776a5f2447b9dd2b1fc7d50514fae2b0eb6fb1f55b43c29ab039460997d",
+      "width": 36,
+      "height": 36,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 1301,
+      "sha256": "e744e748a9fc88eddcb867be48d6db68be9c7957e3c32bc522ba40946dc9e73d",
+      "width": 36,
+      "height": 36,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-150_altform-colorful_theme-light.png",
+      "bytes": 1013,
+      "sha256": "e19dd776a5f2447b9dd2b1fc7d50514fae2b0eb6fb1f55b43c29ab039460997d",
+      "width": 36,
+      "height": 36,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-200.png",
+      "bytes": 1400,
+      "sha256": "333becd6e8c1a2f95c6a396e05c99d278e2f58a282390c9afa76fe36404b2aeb",
+      "width": 48,
+      "height": 48,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 1945,
+      "sha256": "08a20885486232747024ff471fc3a246a19ad24fb5b1914305f0d374afaf7469",
+      "width": 48,
+      "height": 48,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-200_altform-colorful_theme-light.png",
+      "bytes": 1400,
+      "sha256": "333becd6e8c1a2f95c6a396e05c99d278e2f58a282390c9afa76fe36404b2aeb",
+      "width": 48,
+      "height": 48,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-400.png",
+      "bytes": 3385,
+      "sha256": "016e0edba80faca01bee81f6e29f95accdb13e5fa7feb636d0eeb3609e8ca440",
+      "width": 96,
+      "height": 96,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 4088,
+      "sha256": "072dcae214449528bd2de71467a3061602e705a92f85a4a44fb7073ebce19b28",
+      "width": 96,
+      "height": 96,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/BadgeLogo.scale-400_altform-colorful_theme-light.png",
+      "bytes": 3385,
+      "sha256": "016e0edba80faca01bee81f6e29f95accdb13e5fa7feb636d0eeb3609e8ca440",
+      "width": 96,
+      "height": 96,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-100.png",
+      "bytes": 11335,
+      "sha256": "c9d06aac3455da8dad3e3b29194ad234537faec7cb70dfd9e5a40b33e77db754",
+      "width": 620,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 11658,
+      "sha256": "cd25e8b59da871728e9124424092f5686026595032dc787883d1310c1ccc9ba1",
+      "width": 620,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-100_altform-colorful_theme-light.png",
+      "bytes": 11565,
+      "sha256": "423b1271fb77b2e19f04a087846c0b4eaeb6792732d6eb90a6d2ce822ef7f377",
+      "width": 620,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-125.png",
+      "bytes": 16784,
+      "sha256": "bbbccdcd0ecee704910108bfc2bd09b814b73b4e412be1b62026a6accda0d7e9",
+      "width": 775,
+      "height": 375,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 17191,
+      "sha256": "2861159d4068430160f2785d4572b7aed55230d369043ed3b9ad39ff755fb187",
+      "width": 775,
+      "height": 375,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-125_altform-colorful_theme-light.png",
+      "bytes": 17016,
+      "sha256": "ef2c975747445d49908400d0fc9b01b6710c4039e76537665d0bb747581a6e83",
+      "width": 775,
+      "height": 375,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-150.png",
+      "bytes": 22737,
+      "sha256": "d1a03efb1b61bea64543c4332c75176a13798ccf193c58e03de7e3850043b322",
+      "width": 930,
+      "height": 450,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 23417,
+      "sha256": "640ab2c6798b5f130024753afadb2e44f60f0bb0e8f368419cbe96a6ca876586",
+      "width": 930,
+      "height": 450,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-150_altform-colorful_theme-light.png",
+      "bytes": 23197,
+      "sha256": "df5a98dd169ac4f403363b4163e59c52b0b8dfe30aa36fddbcdc9cf94f3bad04",
+      "width": 930,
+      "height": 450,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-200.png",
+      "bytes": 38837,
+      "sha256": "255b78dd49beb9a11f45535a127ff26143890cbe105c16e7d86a95d132722c3e",
+      "width": 1240,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 39126,
+      "sha256": "fa33feb16c07c885933f7e65bf6ee8d7f6323339ec62ece6dc5a6d37c02c05f2",
+      "width": 1240,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-200_altform-colorful_theme-light.png",
+      "bytes": 39063,
+      "sha256": "3e1ee9beb4ea2d2985d525ba7cc78cd69f064e25ab7488c056c541a7d64ad4c5",
+      "width": 1240,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-400.png",
+      "bytes": 144149,
+      "sha256": "e027344728a65b79e4d90d310be26535fb1b32c081407b2b3562272e72e3aebb",
+      "width": 2480,
+      "height": 1200,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 142682,
+      "sha256": "c9889544515efebf7ce1ca66e553ca89889ef880cb4c431d9d9dd21832043630",
+      "width": 2480,
+      "height": 1200,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/SplashScreen.scale-400_altform-colorful_theme-light.png",
+      "bytes": 142628,
+      "sha256": "4121048bb1732e3ce5cc0739e93dc1e457f6d127a3269f6a81014d6e14b2ef14",
+      "width": 2480,
+      "height": 1200,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-100.png",
+      "bytes": 6167,
+      "sha256": "817374a4c4069a0cdcea7f434a7e87e0e90e8d33d5de003d1558b4ee84137068",
+      "width": 150,
+      "height": 150,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 6328,
+      "sha256": "906634217463ad5cf192ef8659bcf1fe6aba85aef17cf40a9008a8b1346657e8",
+      "width": 150,
+      "height": 150,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-100_altform-colorful_theme-light.png",
+      "bytes": 6200,
+      "sha256": "f0ef32deae002ae967a25ee9b855ff02a3bce3c3329441d5a75c63095b9394b1",
+      "width": 150,
+      "height": 150,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-125.png",
+      "bytes": 8823,
+      "sha256": "8f05e99bf7915fc068c61839d74fb5fe473f593eb4e2f524673d78f78b1057b0",
+      "width": 188,
+      "height": 188,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 9156,
+      "sha256": "9b89f84322698dc2661b3c8896cc22ae771200a62138ae77387b360764c8042a",
+      "width": 188,
+      "height": 188,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-125_altform-colorful_theme-light.png",
+      "bytes": 9052,
+      "sha256": "1e51147e93b992bd2b75460f247b642380b7b27f8280a77c6151b5b8af662592",
+      "width": 188,
+      "height": 188,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-150.png",
+      "bytes": 12024,
+      "sha256": "bc72a8f54cd5deedcb4906741e61dd9b04a6b6c86378851b576b53da59f1d5e8",
+      "width": 225,
+      "height": 225,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 12414,
+      "sha256": "77966176491b39a7182ec9d3dc51a827da3b18355db65633e69381bb57a68d71",
+      "width": 225,
+      "height": 225,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-150_altform-colorful_theme-light.png",
+      "bytes": 12300,
+      "sha256": "bd06748e11df6a5062bed3bc232f262784860200c7ff863160b21e1e9fb6af86",
+      "width": 225,
+      "height": 225,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-200.png",
+      "bytes": 19971,
+      "sha256": "0a253b6b0f9e6a300cdf75a200de92d860fbcb96d3260def7a3b7a818e2dbd98",
+      "width": 300,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 20449,
+      "sha256": "622365d496f6182d6811d55fb229c938c491c1e81ce9cd0b33c3ca2f91bbb583",
+      "width": 300,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-200_altform-colorful_theme-light.png",
+      "bytes": 20277,
+      "sha256": "8f9d5486c3b81049cc2a2d0c518056e7708b92bbf176e8814d77b23c9457490c",
+      "width": 300,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-400.png",
+      "bytes": 72298,
+      "sha256": "c98f7a5b8006c9e2bb43ea9be193aa7499d9f68e1ac1abf90cd770ccaf9c585d",
+      "width": 600,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 72827,
+      "sha256": "3223db34df5fc7ac4fc15ad1c90c16e57439cc5a413229f93136e72306a6064b",
+      "width": 600,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square150x150Logo.scale-400_altform-colorful_theme-light.png",
+      "bytes": 72777,
+      "sha256": "2b5695f06337bd855aa11420c274caa2749e73c96538c20b390aecae74f2ea69",
+      "width": 600,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-100.png",
+      "bytes": 21175,
+      "sha256": "fe1c06564df26049059a1b3e09b5c3c1493511d24c6717935f3b548aac94ab04",
+      "width": 310,
+      "height": 310,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 21592,
+      "sha256": "2066b8459871273aba47017b04a464eb7619acd42f44aa67a3ac98b1fe9c8bcb",
+      "width": 310,
+      "height": 310,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-100_altform-colorful_theme-light.png",
+      "bytes": 21451,
+      "sha256": "d139be2177030c79523b333a7bd1da623e03698f62ac2a8fc38ae4dcad26a8db",
+      "width": 310,
+      "height": 310,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-125.png",
+      "bytes": 31918,
+      "sha256": "3f77db0fad1e36616239fa0c907472abcb868b82970c33e2def081f7a0b00ae3",
+      "width": 388,
+      "height": 388,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 32304,
+      "sha256": "bfc11a7d97ca7240d4df288b02758c0c9bc4540cab8deb70a71870cf456ee678",
+      "width": 388,
+      "height": 388,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-125_altform-colorful_theme-light.png",
+      "bytes": 32203,
+      "sha256": "2723a7e2fcb2768a5754ef8d2715b89bf281527bd3e9050ca9d679a1d5b86ee2",
+      "width": 388,
+      "height": 388,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-150.png",
+      "bytes": 44853,
+      "sha256": "38296d31d3c343ad1e73cddb797c5387b2b7e5fb689bf39abc21706d8016dc06",
+      "width": 465,
+      "height": 465,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 45186,
+      "sha256": "d40b591385afd8494dba8afbb908f3645a1659f57e62659e3a9bca6d6fd3ad5f",
+      "width": 465,
+      "height": 465,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-150_altform-colorful_theme-light.png",
+      "bytes": 45165,
+      "sha256": "400354491ad2d89fab5b2db6db7e53839a806b3a3c8728b7fb604704af3713c1",
+      "width": 465,
+      "height": 465,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-200.png",
+      "bytes": 77151,
+      "sha256": "2d4cd0c4a77a6d4957bb2306f6b0144d34b6d55238eb414df8e2621dee0c2dbf",
+      "width": 620,
+      "height": 620,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 76938,
+      "sha256": "0820b8353f8f2c359f400e437f3dd2cb0376f375eb65094f4d61b4e8eba4ecbe",
+      "width": 620,
+      "height": 620,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-200_altform-colorful_theme-light.png",
+      "bytes": 77037,
+      "sha256": "7894ac55f6f68e493b1aa7a3df3fe44b7d3f59d4ebd1925b6a18b88ba0fd8681",
+      "width": 620,
+      "height": 620,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-400.png",
+      "bytes": 282123,
+      "sha256": "22df33cca0f245608d390d9b6fbbb3078fb5e3122822de5889de717c1641d1b5",
+      "width": 1240,
+      "height": 1240,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 279125,
+      "sha256": "8428208f73977f451fbaf2aa8bdfd22dbe25d36ea5bc9350941d243b3d1cc62b",
+      "width": 1240,
+      "height": 1240,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square310x310Logo.scale-400_altform-colorful_theme-light.png",
+      "bytes": 279871,
+      "sha256": "b1a62634a4ed6c116cef3a66b2d5ece17e137edf84b36e0dcaf8e6708730fa6b",
+      "width": 1240,
+      "height": 1240,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-100.png",
+      "bytes": 1463,
+      "sha256": "f60d1cc54712dee2919a4b5c9f37aa016e8aadcd5c3ab8635114da4973002dce",
+      "width": 44,
+      "height": 44,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 1581,
+      "sha256": "9a20c0ea9ef7dce927a7a1dc33ca1c6cfab1b3d7c900c2ca856a249109cc5061",
+      "width": 44,
+      "height": 44,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-100_altform-colorful_theme-light.png",
+      "bytes": 1571,
+      "sha256": "0e2d77c7fc8599833a5616681f156f6330b2631d77130ca3ff647a2168b990e6",
+      "width": 44,
+      "height": 44,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-125.png",
+      "bytes": 2033,
+      "sha256": "3fe233fdacf0089e6ec8f4edaca029e5d4e24f1fa025932fe8045af8fa8b322c",
+      "width": 55,
+      "height": 55,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 2159,
+      "sha256": "1c2fab31c8df778f62a9777d5f3b6dda46a482aba5143bbe12b13e85bdb9fdd5",
+      "width": 55,
+      "height": 55,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-125_altform-colorful_theme-light.png",
+      "bytes": 2119,
+      "sha256": "562736121d9d324bf31b7c4f12879302e285261e23cd99e0e527185241daa4d1",
+      "width": 55,
+      "height": 55,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-150.png",
+      "bytes": 2667,
+      "sha256": "5947a7be87ac1ffeaee999fc2c1d79cfc4c84d69ae9c9e3e6376e7980454b215",
+      "width": 66,
+      "height": 66,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 2896,
+      "sha256": "c6ee0283f04fec7c3b4dd407aa8b1a03e5bb37ea2c890e1b3d5391c6b2660c4c",
+      "width": 66,
+      "height": 66,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-150_altform-colorful_theme-light.png",
+      "bytes": 2813,
+      "sha256": "ad2c0bdf11333363791e7236c4788eada0886141deb3d528a7ff6f6669698c54",
+      "width": 66,
+      "height": 66,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-200.png",
+      "bytes": 4066,
+      "sha256": "d13a36ba79b4322ec4466f3a0995326e9ace04fcfd44b0c55b7653dc8b8e18f0",
+      "width": 88,
+      "height": 88,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 4340,
+      "sha256": "dfe9962dc68de46248de92d0e4b918ed941392b4cc507057c5ac5330588fc0f1",
+      "width": 88,
+      "height": 88,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-200_altform-colorful_theme-light.png",
+      "bytes": 4223,
+      "sha256": "669dbb44dff690a5167f319acca0fcae5ad7b380bd6d66cb120e000a955f5f58",
+      "width": 88,
+      "height": 88,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-400.png",
+      "bytes": 13105,
+      "sha256": "067da4de0a222c3953187caba9fa5e418885aaae859ad7b5486941f31d66a60b",
+      "width": 176,
+      "height": 176,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 13650,
+      "sha256": "d90a69aa128c625802f23017e9e528a314656a9fa8b12833d6d16b18f2910ecd",
+      "width": 176,
+      "height": 176,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.scale-400_altform-colorful_theme-light.png",
+      "bytes": 13491,
+      "sha256": "e9499b10e082f9b31f424eee72bd4a03519fcaa2bca6f9f09e697c919128a3f1",
+      "width": 176,
+      "height": 176,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-16.png",
+      "bytes": 414,
+      "sha256": "78b75a5137ad54b97081ece41d5f0e798c2b210489e5c1b60b903295109e5acc",
+      "width": 16,
+      "height": 16,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-16_altform-lightunplated.png",
+      "bytes": 481,
+      "sha256": "d780d320ee6e29437856a22e094e065c906361f1bc29aa20b955a64efbdfd46a",
+      "width": 16,
+      "height": 16,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-16_altform-unplated.png",
+      "bytes": 505,
+      "sha256": "11a41cbd86b810539d3fb7c731563673b1414fe4792e02f8b34d869244e75273",
+      "width": 16,
+      "height": 16,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-20.png",
+      "bytes": 536,
+      "sha256": "c582459944cfb5966940f5bdeee3089fb1095f2de602bb826605d1c60fed2300",
+      "width": 20,
+      "height": 20,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-20_altform-lightunplated.png",
+      "bytes": 608,
+      "sha256": "ec8c6fe1fa092ba95823f0819eb820d4826018cf138f34bc7b200668029abdd7",
+      "width": 20,
+      "height": 20,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-20_altform-unplated.png",
+      "bytes": 633,
+      "sha256": "795b3f4b356d51d614f15f9b73b8d5bd426720ecd5778ac1d5d2aeb0e11e45bb",
+      "width": 20,
+      "height": 20,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-24.png",
+      "bytes": 682,
+      "sha256": "6174b19b16de31052d46a493f2a7de3f0983c60d3a31be9f1541cb127524c747",
+      "width": 24,
+      "height": 24,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-24_altform-lightunplated.png",
+      "bytes": 786,
+      "sha256": "53f7535903292a367c9ba172929bafd44113fc98fac5fea33209f5b452983406",
+      "width": 24,
+      "height": 24,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-24_altform-unplated.png",
+      "bytes": 825,
+      "sha256": "f53a28bea2d9880a0e966634c505096bba3ef08f335fe40bac75df3fdd5a9667",
+      "width": 24,
+      "height": 24,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-256.png",
+      "bytes": 26623,
+      "sha256": "9ae1f2454d72343e94ecc9d4f7874414ebe280edcdce156360f51e7cba74ceb7",
+      "width": 256,
+      "height": 256,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-256_altform-lightunplated.png",
+      "bytes": 32050,
+      "sha256": "5572900c567f0500f89058619fa40bf95f471ea3020bf9f2d04fb1d7b46654ce",
+      "width": 256,
+      "height": 256,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-256_altform-unplated.png",
+      "bytes": 32098,
+      "sha256": "06f9ed82513eb446defe35f99eb4d68217e35ca1bd9f83c6674a5460f19ffba6",
+      "width": 256,
+      "height": 256,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-30.png",
+      "bytes": 865,
+      "sha256": "c5aded705cc8d4f0f387ce7a64876c2c94a3cee322d633598a9aba9b72c95b24",
+      "width": 30,
+      "height": 30,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-30_altform-lightunplated.png",
+      "bytes": 1032,
+      "sha256": "6b7f8d7bda62ef2c023ff8d76dfb6bd5f267ea3ee239fce4b3003e72d100f628",
+      "width": 30,
+      "height": 30,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-30_altform-unplated.png",
+      "bytes": 1094,
+      "sha256": "e06a61e58e7f08f4124433fc57d79f46210ce627ede5f959dcf6dc7e08362eb7",
+      "width": 30,
+      "height": 30,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-32.png",
+      "bytes": 1016,
+      "sha256": "6810d7b46023b314b15f79376871f5a163166e806618e5b0c9be75582245626b",
+      "width": 32,
+      "height": 32,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-32_altform-lightunplated.png",
+      "bytes": 1134,
+      "sha256": "e17c681171fdccb65294e362a18b177ae0a2602434ab7a6d50419136f26dcf5f",
+      "width": 32,
+      "height": 32,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-32_altform-unplated.png",
+      "bytes": 1183,
+      "sha256": "eea03b756f309aefff3ee587590245cc09f6028a1bc2a0c8eedd195216f2bfbd",
+      "width": 32,
+      "height": 32,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-36.png",
+      "bytes": 1138,
+      "sha256": "899fe6962ba48ba16885d7972444f0cecb263849aeb61c93ba83bcb0a50fb7f0",
+      "width": 36,
+      "height": 36,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-36_altform-lightunplated.png",
+      "bytes": 1408,
+      "sha256": "08c6041596f563eec2b5a9cd6844040c565ac9463bb43a7fec4ad13aae0a16bc",
+      "width": 36,
+      "height": 36,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-36_altform-unplated.png",
+      "bytes": 1458,
+      "sha256": "166c7a3d2e97b13bf3150d881bb288bbc08ae0195309d4111f6e1b1054678b41",
+      "width": 36,
+      "height": 36,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-40.png",
+      "bytes": 1339,
+      "sha256": "b2c9c29ec1360ff56cd39b63c8b206ea76cd0b48ba89537bd29b4741dd51206c",
+      "width": 40,
+      "height": 40,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-40_altform-lightunplated.png",
+      "bytes": 1570,
+      "sha256": "3336debc3c2a76138f651a2ffa4f4ffa426f84cfccbb85a7c6b602c9a8e7ccc9",
+      "width": 40,
+      "height": 40,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-40_altform-unplated.png",
+      "bytes": 1642,
+      "sha256": "852e277ce416072d3aacc5bb752de3a2c81f1c6cbe57cc80141b850c21e5f166",
+      "width": 40,
+      "height": 40,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-48.png",
+      "bytes": 1732,
+      "sha256": "8c7d8b3b0789738cc0fc8acc063914be82ad483fdd8bea5d8b4c173719cd974b",
+      "width": 48,
+      "height": 48,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-48_altform-lightunplated.png",
+      "bytes": 2016,
+      "sha256": "3417f6fba6018b48ce061c46e2d564af4814304bbe266b5d2b99c23d464e8870",
+      "width": 48,
+      "height": 48,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-48_altform-unplated.png",
+      "bytes": 2107,
+      "sha256": "ee2b5d364fa0abebfe2ea694ec1e200e6c67f68b041ca743ade6c05d9596dfb9",
+      "width": 48,
+      "height": 48,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-60.png",
+      "bytes": 2366,
+      "sha256": "7fb228d32bd7ff9c9cb5c759280be9cfb28b225701ccf377732d085c9cab690e",
+      "width": 60,
+      "height": 60,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-60_altform-lightunplated.png",
+      "bytes": 2819,
+      "sha256": "5021024739600d7cf4dc2fb4e27624006f905321cd425f89976bc36ef27aee9e",
+      "width": 60,
+      "height": 60,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-60_altform-unplated.png",
+      "bytes": 2886,
+      "sha256": "68490793a43b13ff9b6b1d16d08a26cbf9b34a17442f2772f3e25ed2a9e78622",
+      "width": 60,
+      "height": 60,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-64.png",
+      "bytes": 2584,
+      "sha256": "4e09a688d247abe006f06fd987b98632f3b1faa59d9b8d33d8087cc644168d12",
+      "width": 64,
+      "height": 64,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-64_altform-lightunplated.png",
+      "bytes": 3083,
+      "sha256": "9e62e0f2e40bc73773aeb02d0493965b07347b3f255d0e63b0c31334fda1d3b8",
+      "width": 64,
+      "height": 64,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-64_altform-unplated.png",
+      "bytes": 3205,
+      "sha256": "26032ce282d4aa8bb796befeb38320cc1d3cba633c09f235a10357c278548368",
+      "width": 64,
+      "height": 64,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-72.png",
+      "bytes": 3090,
+      "sha256": "e9a033c355d7eee490493bb17657be3880c76969ec888a17371aab9e60f30bd6",
+      "width": 72,
+      "height": 72,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-72_altform-lightunplated.png",
+      "bytes": 3711,
+      "sha256": "ae375ef99072cb3e58217205c4e1e8f62b305085269973262912d987e9f87c1f",
+      "width": 72,
+      "height": 72,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-72_altform-unplated.png",
+      "bytes": 3815,
+      "sha256": "3427b4bff2fdacfa4b95d161396943b1a5f0cc761eb60fa41c9c16d96489a2aa",
+      "width": 72,
+      "height": 72,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-80.png",
+      "bytes": 3696,
+      "sha256": "ac7319c51c1b0addd4ac586d5e6faf8e9c96c63d8a9d3d58c2fa72b8635557af",
+      "width": 80,
+      "height": 80,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-80_altform-lightunplated.png",
+      "bytes": 4542,
+      "sha256": "95a8f6845ac793fe6fd9057d376619054ea92e1cc874acc270bb19ca5b7475da",
+      "width": 80,
+      "height": 80,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-80_altform-unplated.png",
+      "bytes": 4661,
+      "sha256": "5431a63302e977501a3a624c2cc5bbba8af182e70404673709a4230a775c58be",
+      "width": 80,
+      "height": 80,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-96.png",
+      "bytes": 4883,
+      "sha256": "cce9d70ea0a4a08adb0a3a992e1ddc8eca27c30fa17da125a1f6665c28b54585",
+      "width": 96,
+      "height": 96,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-96_altform-lightunplated.png",
+      "bytes": 5968,
+      "sha256": "67582f6f0ab71ed20f84f0b8450c216470211fc124acf3cb5a19fe4d44899485",
+      "width": 96,
+      "height": 96,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square44x44Logo.targetsize-96_altform-unplated.png",
+      "bytes": 6141,
+      "sha256": "4f94405f613515b54d0d42bf9d40acc9ecdc6c401f16501059079838bfcfa62b",
+      "width": 96,
+      "height": 96,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-100.png",
+      "bytes": 2157,
+      "sha256": "74e213b996412577884005ffe8d851f004f5a130342e988017eb23f7ba44e43a",
+      "width": 71,
+      "height": 71,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 2251,
+      "sha256": "0a0d89a810be0d2800667bdab7ea9f7f5a527c351d8a14edaae179c36ed15f19",
+      "width": 71,
+      "height": 71,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-100_altform-colorful_theme-light.png",
+      "bytes": 2188,
+      "sha256": "69a511917249b39f05e6af00d898c298e204cfd11cbdcd54b810f32c085ce399",
+      "width": 71,
+      "height": 71,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-125.png",
+      "bytes": 3130,
+      "sha256": "d27104f604df86bfb1a5a0431b56ac71562b75a562d253148f3c8e7daae87cd6",
+      "width": 89,
+      "height": 89,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 3257,
+      "sha256": "22801a5142dd37bb2dec0266f05343453a1670d9e35746d249f0e6cfd672735b",
+      "width": 89,
+      "height": 89,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-125_altform-colorful_theme-light.png",
+      "bytes": 3182,
+      "sha256": "d658b340ed84d02dd5c9960f4db3b438f5f1bc08c39442dc1f9d65312f87846d",
+      "width": 89,
+      "height": 89,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-150.png",
+      "bytes": 4140,
+      "sha256": "8ddca1bebedef2c540076a080e131de83a98a793a49a520324ee68f4fbcd4c1c",
+      "width": 107,
+      "height": 107,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 4309,
+      "sha256": "69aa4f1803d702d8fdb9d10347ae3cf08947e1b10f5ea2d764399c37cb5e2a51",
+      "width": 107,
+      "height": 107,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-150_altform-colorful_theme-light.png",
+      "bytes": 4164,
+      "sha256": "0f70bb7cd3edf3ed711a0faab4a0b878975f93bccc6ac277368cdcce55d7d556",
+      "width": 107,
+      "height": 107,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-200.png",
+      "bytes": 6498,
+      "sha256": "6523bdfbe508cbaa9f4c5346d5d947f0140036a1d97780bf45efd10d9cc1ab67",
+      "width": 142,
+      "height": 142,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 6888,
+      "sha256": "68cfbdca60db97dc8f6661830fdf736cf3a1a43d7a85345360fc11ac1242a1ae",
+      "width": 142,
+      "height": 142,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-200_altform-colorful_theme-light.png",
+      "bytes": 6709,
+      "sha256": "c57ad9afe8e7a36a11fe16467cd1cf5116d85b11cc5be6f126afd7d338e195f8",
+      "width": 142,
+      "height": 142,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-400.png",
+      "bytes": 21744,
+      "sha256": "b759eef61ebef653a47e4639327b8aee6716a54da5bbc064fe2a3c6f4ce3d50b",
+      "width": 284,
+      "height": 284,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 22080,
+      "sha256": "7426e12c36be24ffbb0d2d2065f13f1dbb6ab7ed404f29464bdc77e56b9c9a02",
+      "width": 284,
+      "height": 284,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Square71x71Logo.scale-400_altform-colorful_theme-light.png",
+      "bytes": 21882,
+      "sha256": "1989aa4c5373fdf476df47ec267f82a3d963b519ce0491e6afdaae7bba7cdb20",
+      "width": 284,
+      "height": 284,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-100.png",
+      "bytes": 1667,
+      "sha256": "5da7af82cdd7968db8c6ddb5c7795a9a80d870394c953019703f35babcac46a2",
+      "width": 50,
+      "height": 50,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 1810,
+      "sha256": "9bca06a06e9d113c1233d541c8f2bffb011c9e9c3d93d7065c46f0918fb84acb",
+      "width": 50,
+      "height": 50,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-100_altform-colorful_theme-light.png",
+      "bytes": 1767,
+      "sha256": "552dbd1e06a880bce09371fb17dcc5205718da9e1c3263a0ca3bcbca529f9147",
+      "width": 50,
+      "height": 50,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-125.png",
+      "bytes": 2370,
+      "sha256": "a772320adc653158d4b05f3a67134f81239c752a7208b67f655172ababc32fb4",
+      "width": 63,
+      "height": 63,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 2483,
+      "sha256": "342e0fbeac938d2a06c52701f0a97a10bc28fa75cd042d0b65367f32e85c9bea",
+      "width": 63,
+      "height": 63,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-125_altform-colorful_theme-light.png",
+      "bytes": 2428,
+      "sha256": "37f44eae4b612da1884701596dfc7a44fcfd977e427b06d21a5ac20950e1c306",
+      "width": 63,
+      "height": 63,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-150.png",
+      "bytes": 3069,
+      "sha256": "f9364673a1804714c2f7af2342fac92647712eec2e278a9dfaaece074f7a7d20",
+      "width": 75,
+      "height": 75,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 3199,
+      "sha256": "6f35a5aff079fa434b4c5da48263d331a83d85f0efe78116a952daf0e044f4b4",
+      "width": 75,
+      "height": 75,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-150_altform-colorful_theme-light.png",
+      "bytes": 3125,
+      "sha256": "5205a078235cab4df5d997d3adfb37c82b68177cb0bdcda3f8c1315bea1b7806",
+      "width": 75,
+      "height": 75,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-200.png",
+      "bytes": 4870,
+      "sha256": "46a90c609657f16ac2758f7101af7b221e630f8e09cc9822710c94dda01c7f11",
+      "width": 100,
+      "height": 100,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 5069,
+      "sha256": "346385621f816279a051e0b194304f4a72ab8d02e31e24da7193a09991d645c7",
+      "width": 100,
+      "height": 100,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-200_altform-colorful_theme-light.png",
+      "bytes": 4969,
+      "sha256": "a6f00cad19dbe3e7f9fb48198cec5b4f5de5b1df4779ae74fb12b884f26edd26",
+      "width": 100,
+      "height": 100,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-400.png",
+      "bytes": 15611,
+      "sha256": "ec834a072c5b3d5db20e08f9348f69a4b14747cb0d321670366d64ce3d69d192",
+      "width": 200,
+      "height": 200,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 16210,
+      "sha256": "8b4edf07d3ad305485dccbab16544f014a0f5ead092efe55b992f8f07473bd8b",
+      "width": 200,
+      "height": 200,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/StoreLogo.scale-400_altform-colorful_theme-light.png",
+      "bytes": 16080,
+      "sha256": "ccf1dbc3adae4f401c26a63a37e1bb4edc191304456d037c62cb7fb8081ce6f2",
+      "width": 200,
+      "height": 200,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-100.png",
+      "bytes": 4813,
+      "sha256": "facb2cd7171cd44b686b4f27b7169a6770675e0a5353edf6aa905eb00ed5b2b4",
+      "width": 310,
+      "height": 150,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-100_altform-colorful_theme-dark.png",
+      "bytes": 5092,
+      "sha256": "8ad802a7f246c574323f17a60318fde038f54d05cfc0140ad3e6e8340d851cbb",
+      "width": 310,
+      "height": 150,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-100_altform-colorful_theme-light.png",
+      "bytes": 4964,
+      "sha256": "57f70c981afe5a812bb4694528bb12e7011dcd0a2e4277d0d06ce13af07536b0",
+      "width": 310,
+      "height": 150,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-125.png",
+      "bytes": 7047,
+      "sha256": "ec9ec0e3b22e36dc97de7e64f831147783edf1e7e26fde444e510644f374d965",
+      "width": 388,
+      "height": 188,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-125_altform-colorful_theme-dark.png",
+      "bytes": 7359,
+      "sha256": "7ecf958e0ef2fc79037a78d086e0def14ab3c1f07305f8096d272b712e2dc07d",
+      "width": 388,
+      "height": 188,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-125_altform-colorful_theme-light.png",
+      "bytes": 7198,
+      "sha256": "2417137318f21fe3bef0e0309fb1c7660ca86ee2c4ab831211bbb325abd6c5d8",
+      "width": 388,
+      "height": 188,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-150.png",
+      "bytes": 9359,
+      "sha256": "bd8ed05fb38eb1ed70daa4f3b266957c0007388d78cf6da25bf2fce2be6c68d1",
+      "width": 465,
+      "height": 225,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-150_altform-colorful_theme-dark.png",
+      "bytes": 9561,
+      "sha256": "2f30bca23ec4fdbd352498128190fcfe069cd2223dc8a64e394dc5b7aa3936b9",
+      "width": 465,
+      "height": 225,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-150_altform-colorful_theme-light.png",
+      "bytes": 9477,
+      "sha256": "a20c343d047d5dbb2311339f49a26f18d0368d41265437c9af66fa461afe6790",
+      "width": 465,
+      "height": 225,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-200.png",
+      "bytes": 15567,
+      "sha256": "86dcab4fe3561c239f460b059def82683d2db0ff5262981c102fcf584c955891",
+      "width": 620,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-200_altform-colorful_theme-dark.png",
+      "bytes": 15949,
+      "sha256": "30008f1bbf45f4d5ab880c6a59a8b73252400af3d31aff8af9706dd8bada0118",
+      "width": 620,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-200_altform-colorful_theme-light.png",
+      "bytes": 15840,
+      "sha256": "b784ff267d7bb4b24df7ff0cb665ba132e7ff47e6757087d417adb3ff90dbbda",
+      "width": 620,
+      "height": 300,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-400.png",
+      "bytes": 55864,
+      "sha256": "6a764fa65975929315225337f48becde14bbc2f0484a22f015ab0b3c579b998c",
+      "width": 1240,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-400_altform-colorful_theme-dark.png",
+      "bytes": 56158,
+      "sha256": "ea7d602f87216908381edb226ddef18ef113a88c64866f7415405d2e280ea8af",
+      "width": 1240,
+      "height": 600,
+      "format": "PNG"
+    },
+    {
+      "path": "windows/msix/Assets/Wide310x150Logo.scale-400_altform-colorful_theme-light.png",
+      "bytes": 56114,
+      "sha256": "ad484172064da5fb8b1bbf814f1a0fdefd434beb0aa4742ac68236180f69b1cc",
+      "width": 1240,
+      "height": 600,
+      "format": "PNG"
+    }
+  ]
+}

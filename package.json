@@ -1,0 +1,71 @@
+{
+  "name": "lumaworks",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first AI short drama studio powered by Seedream and Seedance",
+  "author": "LumaWorks Contributors",
+  "license": "UNLICENSED",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "native:electron": "electron-builder install-app-deps",
+    "native:node": "pnpm rebuild better-sqlite3",
+    "predev": "pnpm native:electron",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "prepackage:mac": "pnpm native:electron",
+    "package:mac": "pnpm build && electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps",
+    "typecheck": "tsc --noEmit",
+    "pretest": "pnpm native:node",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "better-sqlite3": "^11.8.1",
+    "drizzle-orm": "^0.39.3",
+    "ffmpeg-static": "^5.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^35.0.1",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.1.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "vitest": "^3.0.8"
+  },
+  "build": {
+    "appId": "studio.lumaworks.desktop",
+    "productName": "LumaWorks",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**",
+      "node_modules/ffmpeg-static/**"
+    ],
+    "files": [
+      "out/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.video",
+      "target": ["dmg", "zip"],
+      "hardenedRuntime": true,
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    }
+  }
+}
