@@ -1,6 +1,8 @@
 import { join } from 'node:path'
 import { copyFile } from 'node:fs/promises'
 import { z } from 'zod'
+import { NonRetryableError } from '../errors'
+import type { VoiceLine } from '@shared/domain'
 import type { AppDatabase } from '../db/database'
 import type { JobContext, JobRunner } from '../jobs/runner'
 import type { MediaStore } from '../media/store'
@@ -10,7 +12,9 @@ import type { FfmpegRenderer } from '../render/ffmpeg'
 import type { PublisherRegistry } from '../publishers/registry'
 import { mapConcurrent } from '../utils/concurrency'
 import { buildClipTimeline, planDialogue, timingFingerprint } from './timing'
-import { episodeScriptPrompt, episodeScriptSchema, storyCharactersPrompt, storyCharactersSchema, storyEpisodesPrompt, storyEpisodesSchema, storyFoundationPrompt, storyFoundationSchema, storyLocationsPrompt, storyLocationsSchema, storyBibleSchema } from './prompts'
+import { buildTimedChunks } from './alignment'
+import { chunksForSubtitle } from '../render/ffmpeg'
+import { episodeDetailPrompt, episodeDetailSchema, episodePlanPrompt, episodePlanSchema, episodeReviewPrompt, episodeReviewSchema, episodeRevisionPrompt, episodeScriptSchema, shotGridImagePrompt, storyCharactersPrompt, storyCharactersSchema, storyEpisodesPrompt, storyEpisodesSchema, storyFoundationPrompt, storyFoundationSchema, storyLocationsPrompt, storyLocationsSchema, storyBibleSchema } from './prompts'
 
 const translatedLinesSchema = z.object({ lines: z.array(z.object({ speaker: z.string(), text: z.string(), shotPosition: z.number().int().positive().optional(), startMs: z.number().int(), endMs: z.number().int() })) })
 const shortenedLineSchema = z.object({ text: z.string().trim().min(1) })
@@ -104,21 +108,60 @@ export function registerPipelineHandlers(input: {
     stage('script.load', '正在加载项目与故事圣经')
     const project = db.getProject(job.entityId); if (!project) throw new Error('项目不存在')
     const bible = db.getStoryBible(project.id); if (!bible) throw new Error('请先生成故事圣经')
-    const prompt = episodeScriptPrompt({ storyBible: bible, episodeNumber: Number(payload(job.payloadJson).episodeNumber ?? 1) })
-    stage('script.request_model', '正在请求模型拆解竖屏分镜', { promptChars: prompt.length })
-    const data = await ark.withTrace(trace).generateJson(prompt, (value) => episodeScriptSchema.parse(value), { contractName: '分镜剧本', signal })
+    const episodeNumber = Number(payload(job.payloadJson).episodeNumber ?? 1)
+    stage('script.plan', '正在规划分镜：动作桥梁、人物存续与对话拆分')
+    const plan = await ark.withTrace(trace).generateJson(episodePlanPrompt({ storyBible: bible, episodeNumber }), (value) => episodePlanSchema.parse(value), { contractName: '分镜规划', signal })
     if (signal.aborted) throw abortError()
-    stage('script.persist', '正在保存剧本与镜头', { shots: data.shots.length })
+    stage('script.detail', '正在设计摄影、表演与视频动作细节', { shots: plan.shots.length })
+    const detail = await ark.withTrace(trace).generateJson(episodeDetailPrompt({ storyBible: bible, planJson: JSON.stringify(plan.shots) }), (value) => episodeDetailSchema.parse(value), { contractName: '镜头细化', signal })
+    if (signal.aborted) throw abortError()
+    const count = Math.min(plan.shots.length, detail.shots.length)
+    if (count !== plan.shots.length) stage('script.detail_mismatch', '细化结果与规划镜头数不一致，已按较少一方合并', { planned: plan.shots.length, detailed: detail.shots.length })
+    if (count < 8) throw new Error(`镜头细化结果不足 8 个（规划 ${plan.shots.length} 个，细化 ${detail.shots.length} 个），请重试`)
+    const merged = {
+      title: plan.title, summary: plan.summary, dialogue: plan.dialogue,
+      shots: Array.from({ length: count }, (_, index) => {
+        const shot = plan.shots[index]; const refined = detail.shots[index]
+        return {
+          title: refined.title || shot.title,
+          description: refined.description || shot.description,
+          imagePrompt: refined.imagePrompt,
+          videoPrompt: refined.videoPrompt,
+          durationSeconds: refined.durationSeconds ?? shot.durationSeconds,
+          characters: shot.characters,
+          direction: {
+            sceneType: shot.sceneType, shotType: refined.shotType, cameraMove: refined.cameraMove,
+            location: shot.location, sourceText: shot.sourceText, carryOver: shot.carryOver, actingNotes: refined.actingNotes,
+          },
+        }
+      }),
+    }
+    stage('script.review', '审校责编正在按红线清单审查分镜')
+    const review = await ark.withTrace(trace).generateJson(episodeReviewPrompt({ storyBible: bible, scriptJson: JSON.stringify(merged) }), (value) => episodeReviewSchema.parse(value), { contractName: '分镜审校', signal })
+    if (signal.aborted) throw abortError()
+    let finalScript: unknown = merged
+    if (review.grade === 'C' || review.grade === 'D') {
+      stage('script.revise', `审校评级 ${review.grade}（${review.problems.length} 项问题），正在自动修订一次`, { grade: review.grade, problems: review.problems.slice(0, 10) })
+      finalScript = await ark.withTrace(trace).generateJson(episodeRevisionPrompt({ storyBible: bible, scriptJson: JSON.stringify(merged), problemsJson: JSON.stringify(review.problems) }), (value) => episodeScriptSchema.parse(value), { contractName: '分镜修订', signal })
+      if (signal.aborted) throw abortError()
+    } else {
+      stage('script.review_passed', `审校评级 ${review.grade}，无需修订`, { grade: review.grade, problems: review.problems.length })
+    }
+    const data = episodeScriptSchema.parse(finalScript)
+    stage('script.persist', '正在保存剧本与镜头', { shots: data.shots.length, reviewGrade: review.grade })
     const episodeId = db.replaceEpisodeScript(project.id, data); db.setProjectStage(project.id, 'storyboard')
-    return { episodeId, shots: data.shots.length }
+    return { episodeId, shots: data.shots.length, reviewGrade: review.grade, reviewProblems: review.problems.length, revised: review.grade === 'C' || review.grade === 'D' }
   })
 
   runner.register('shot-image', async ({ job, progress, signal, stage, trace }) => {
     const shot = db.getShot(job.entityId); if (!shot) throw new Error('镜头不存在')
     const project = db.getProjectForEpisode(shot.episodeId); if (!project) throw new Error('项目不存在')
     const data = payload(job.payloadJson)
-    stage('image.generate', '正在生成分镜关键帧')
-    const result = await ark.withTrace(trace).generateImage({ prompt: `${shot.imagePrompt}\n真人电影质感，原创人物面孔且不模仿任何真实艺人或现有影视角色，角色一致，竖屏9:16，无品牌 Logo、无文字无水印`, aspectRatio: '9:16', referencePaths: (data.referencePaths as string[] | undefined) ?? [], signal })
+    const referencePaths = (data.referencePaths as string[] | undefined) ?? db.getShotReferencePaths(shot.id)
+    stage('image.generate', '正在生成分镜关键帧', { references: referencePaths.length, characters: shot.characters })
+    const consistency = referencePaths.length ? `\n随附 ${referencePaths.length} 张参考图（参考图1至参考图${referencePaths.length}）为本剧角色的定妆照，对应角色必须与参考图的面部特征、发型、服饰完全一致，不得换脸或改变造型` : ''
+    const firstFrame = '\n这是视频的首帧画面：呈现动作即将发生的起始瞬间而非完成态，静态构图清晰，主体突出'
+    const result = await ark.withTrace(trace).generateImage({ prompt: `${shot.imagePrompt}${consistency}${firstFrame}\n真人电影质感，原创人物面孔且不模仿任何真实艺人或现有影视角色，角色一致，竖屏9:16，无品牌 Logo、无文字无水印`, aspectRatio: '9:16', referencePaths, signal })
     stage('media.download', '正在下载并保存图片')
     const path = await media.download(project.id, 'images', result.url, { signal, onProgress: (received, total) => { if (total) progress(received / total * 100, '正在下载图片', { current: received, total, unit: 'bytes' }) } }); db.updateShotMedia(shot.id, 'image', path); db.addAsset({ projectId: project.id, entityType: 'shot', entityId: shot.id, kind: 'storyboard-image', path, sourceUrl: result.url })
     let nextJobId: string | undefined
@@ -127,17 +170,73 @@ export function registerPipelineHandlers(input: {
       nextJobId = runner.enqueue({ type: 'shot-video', entityId: shot.id, payload: {}, scheduledAt, force: false }).id
       stage('image.video_queued', '关键帧完成，已接续镜头视频任务', { nextJobId })
     }
-    return { path, nextJobId }
+    return { path, nextJobId, references: referencePaths.length }
+  })
+
+  runner.register('shot-grid-image', async ({ job, progress, signal, stage, trace }) => {
+    const data = payload(job.payloadJson)
+    const shotIds = Array.isArray(data.shotIds) ? (data.shotIds as unknown[]).filter((id): id is string => typeof id === 'string') : []
+    if (shotIds.length !== 4) throw new NonRetryableError('宫格生图每次需要恰好 4 个镜头')
+    const shots = shotIds.map((id) => { const shot = db.getShot(id); if (!shot) throw new NonRetryableError(`镜头不存在：${id}`); return shot }).sort((a, b) => a.position - b.position)
+    if (new Set(shots.map((shot) => shot.episodeId)).size !== 1) throw new NonRetryableError('宫格生图的镜头必须属于同一集')
+    const project = db.getProjectForEpisode(shots[0].episodeId); if (!project) throw new Error('项目不存在')
+    const referencePaths = [...new Set(shots.flatMap((shot) => db.getShotReferencePaths(shot.id)))].slice(0, 10)
+    stage('image.generate', '正在生成 2x2 宫格关键帧', { shots: shots.map((shot) => shot.position), references: referencePaths.length })
+    const result = await ark.withTrace(trace).generateImage({ prompt: shotGridImagePrompt({ shots, referenceCount: referencePaths.length }), aspectRatio: '9:16', referencePaths, signal })
+    stage('media.download', '正在下载宫格图')
+    const gridPath = await media.download(project.id, 'images', result.url, { signal, onProgress: (received, total) => { if (total) progress(received / total * 100, '正在下载宫格图', { current: received, total, unit: 'bytes' }) } })
+    db.addAsset({ projectId: project.id, entityType: 'episode', entityId: shots[0].episodeId, kind: 'storyboard-grid', path: gridPath, sourceUrl: result.url })
+    stage('image.slice', '正在切分宫格为单镜关键帧')
+    const cells = await renderer.sliceGrid(gridPath, 2, 2, join(media.projectDir(project.id), 'images', `grid-${job.id.slice(0, 8)}`), signal)
+    shots.forEach((shot, index) => { db.updateShotMedia(shot.id, 'image', cells[index]); db.addAsset({ projectId: project.id, entityType: 'shot', entityId: shot.id, kind: 'storyboard-image', path: cells[index] }) })
+    let nextJobIds: string[] = []
+    if (data.continueToVideo === true) {
+      const scheduledAt = typeof data.batchScheduledAt === 'string' ? data.batchScheduledAt : job.createdAt
+      nextJobIds = shots.map((shot) => runner.enqueue({ type: 'shot-video', entityId: shot.id, payload: {}, scheduledAt, force: false }).id)
+      stage('image.video_queued', '宫格切分完成，已接续镜头视频任务', { nextJobIds })
+    }
+    return { gridPath, cells: cells.length, nextJobIds }
   })
 
   runner.register('shot-video', async ({ job, progress, signal, stage, trace }) => {
     const shot = db.getShot(job.entityId); if (!shot?.imagePath) throw new Error('请先生成镜头关键帧')
     const project = db.getProjectForEpisode(shot.episodeId); if (!project) throw new Error('项目不存在')
-    stage('video.generate', '正在提交 Seedance 视频任务')
-    const result = await ark.withTrace(trace).generateVideo({ prompt: shot.videoPrompt, imagePath: shot.imagePath, durationSeconds: shot.durationSeconds, lastFramePath: typeof payload(job.payloadJson).lastFramePath === 'string' ? String(payload(job.payloadJson).lastFramePath) : undefined }, ({ progress: value, message }) => value === undefined ? stage('video.waiting', message ?? '等待 Seedance 处理') : progress(value, message), signal)
+    const data = payload(job.payloadJson)
+    const explicitLastFrame = typeof data.lastFramePath === 'string' ? data.lastFramePath : undefined
+    const nextShot = db.getNextShot(shot.episodeId, shot.position)
+    const bridgePath = data.bridgeToNext === false ? undefined : nextShot?.imagePath ?? undefined
+    const bridging = !explicitLastFrame && Boolean(bridgePath)
+    // Textual carry-over (承接上镜) anchors the opening state; the constraint
+    // pack suppresses face drift, stiff motion, and duplicate subjects.
+    const carryOver = shot.direction?.carryOver?.trim()
+    const prompt = [
+      carryOver ? `承接上镜：${carryOver}` : '',
+      shot.videoPrompt,
+      bridging ? '镜头结尾自然收束到下一镜头的开场构图，与下一镜头形成无缝衔接' : '',
+      '人物面部稳定不变形、五官清晰、动作连贯自然，不僵硬，无穿模无卡顿；禁止出现外形、着装、配饰完全一致的人物分身或双胞胎效果，同一画面仅保留单个对应人物；保持无字幕，避免生成任何文字或字幕；不要生成水印。',
+    ].filter(Boolean).join('\n')
+    stage('video.generate', '正在提交 Seedance 视频任务', { continuityBridge: bridging, carryOver: Boolean(carryOver) })
+    const result = await ark.withTrace(trace).generateVideo({ prompt, imagePath: shot.imagePath, durationSeconds: shot.durationSeconds, lastFramePath: explicitLastFrame ?? bridgePath, resolution: typeof data.resolution === 'string' ? data.resolution : undefined }, ({ progress: value, message }) => value === undefined ? stage('video.waiting', message ?? '等待 Seedance 处理') : progress(value, message), signal)
     stage('media.download', '正在下载并保存视频')
     const path = await media.download(project.id, 'videos', result.url, { signal, onProgress: (received, total) => { if (total) progress(received / total * 100, '正在下载视频', { current: received, total, unit: 'bytes' }) } }); db.updateShotMedia(shot.id, 'video', path); db.addAsset({ projectId: project.id, entityType: 'shot', entityId: shot.id, kind: 'video', path, sourceUrl: result.url, metadata: { externalId: result.externalId } })
-    return { path, externalId: result.externalId }
+    return { path, externalId: result.externalId, continuityBridge: bridging }
+  })
+
+  runner.register('character-image', async ({ job, progress, signal, stage, trace }) => {
+    const character = db.getCharacterVoiceById(job.entityId); if (!character) throw new Error('角色不存在')
+    const data = payload(job.payloadJson)
+    const prompt = typeof data.prompt === 'string' && data.prompt.trim()
+      ? data.prompt.trim()
+      : `原创竖屏短剧角色定妆参考照：${character.name}（${character.role}）。${character.description}\n正面半身肖像，直视镜头，中性表情，纯色浅灰背景，均匀柔光，真人电影照片质感，皮肤与毛发细节真实，竖屏9:16，无文字无水印，不模仿任何真实艺人或现有影视角色`
+    stage('image.generate', '正在生成角色定妆照', { character: character.name })
+    const result = await ark.withTrace(trace).generateImage({ prompt, aspectRatio: '9:16', signal })
+    stage('media.download', '正在下载定妆照')
+    const path = await media.download(character.projectId, 'references', result.url, { signal, onProgress: (received, total) => { if (total) progress(received / total * 100, '正在下载定妆照', { current: received, total, unit: 'bytes' }) } })
+    const assetId = db.addAsset({ projectId: character.projectId, entityType: 'character', entityId: character.id, kind: 'reference-image', path, sourceUrl: result.url })
+    db.setCharacterReferenceAsset(character.id, assetId)
+    const project = db.getProject(character.projectId)
+    if (project?.stage === 'script') db.setProjectStage(project.id, 'assets')
+    return { path, assetId }
   })
 
   const genericImage = async ({ job, progress, signal, stage, trace }: JobContext) => {
@@ -145,10 +244,9 @@ export function registerPipelineHandlers(input: {
     if (!projectId || typeof data.prompt !== 'string') throw new Error('素材任务缺少 projectId 或 prompt')
     stage('image.generate', '正在生成视觉资产'); const result = await ark.withTrace(trace).generateImage({ prompt: data.prompt, aspectRatio: String(data.aspectRatio ?? '9:16'), referencePaths: data.referencePaths as string[] | undefined, signal })
     stage('media.download', '正在下载视觉资产')
-    const path = await media.download(projectId, 'references', result.url, { signal, onProgress: (received, total) => { if (total) progress(received / total * 100, '正在下载视觉资产', { current: received, total, unit: 'bytes' }) } }); const assetId = db.addAsset({ projectId, entityType: job.type.startsWith('character') ? 'character' : 'location', entityId: job.entityId, kind: 'reference-image', path, sourceUrl: result.url })
+    const path = await media.download(projectId, 'references', result.url, { signal, onProgress: (received, total) => { if (total) progress(received / total * 100, '正在下载视觉资产', { current: received, total, unit: 'bytes' }) } }); const assetId = db.addAsset({ projectId, entityType: 'location', entityId: job.entityId, kind: 'reference-image', path, sourceUrl: result.url })
     return { path, assetId }
   }
-  runner.register('character-image', genericImage)
   runner.register('location-image', genericImage)
 
   runner.register('translate-episode', async ({ job, signal, stage, trace }) => {
@@ -186,15 +284,17 @@ export function registerPipelineHandlers(input: {
     stage('speech.prepare', '正在准备多角色配音', { locale, lines: lines.length })
     const jobSpeech = speech.withTrace(trace)
     const overrideVoiceId = typeof data.voiceId === 'string' && data.voiceId.trim() ? data.voiceId.trim() : undefined
-    let completed = 0
+    let completed = 0; let aligned = 0
     await mapConcurrent(lines, 4, async (line) => {
       const character = db.getCharacterVoice(project.id, line.speaker); const preferredVoiceId = overrideVoiceId ?? (locale === 'en-US' ? character?.enVoiceId : character?.zhVoiceId)
       const defaultVoiceId = jobSpeech.resolveVoiceId(locale); const requestedVoiceId = jobSpeech.resolveVoiceId(locale, preferredVoiceId); let effectiveVoiceId = requestedVoiceId
       const targetMs = Math.max(300, line.endMs - line.startMs); let spokenText = line.text; let outputPath = ''; let audioDurationMs = 0
+      let chunks: VoiceLine['chunks'] = null
       for (let attempt = 0; attempt < 3; attempt++) {
         const base = join(media.projectDir(project.id), 'audio', locale, `${String(line.position).padStart(3, '0')}-${plan.version}-${attempt}`); const rawPath = `${base}-raw.mp3`; const finalPath = `${base}.mp3`
+        let synthesis: Awaited<ReturnType<typeof jobSpeech.synthesize>> | undefined
         try {
-          await jobSpeech.synthesize({ text: spokenText, voiceId: effectiveVoiceId, locale, outputPath: rawPath, signal })
+          synthesis = await jobSpeech.synthesize({ text: spokenText, voiceId: effectiveVoiceId, locale, outputPath: rawPath, signal })
           if (character && !overrideVoiceId && effectiveVoiceId === requestedVoiceId) db.setCharacterVoiceWarning(character.id, locale, null)
         } catch (error) {
           if (effectiveVoiceId === defaultVoiceId || !isVoiceConfigurationError(error)) throw error
@@ -202,12 +302,15 @@ export function registerPipelineHandlers(input: {
           stage('speech.voice_fallback', warning, { position: line.position, requestedVoiceId: effectiveVoiceId, fallbackVoiceId: defaultVoiceId })
           effectiveVoiceId = defaultVoiceId
           if (character && !overrideVoiceId) db.setCharacterVoiceWarning(character.id, locale, warning)
-          await jobSpeech.synthesize({ text: spokenText, voiceId: effectiveVoiceId, locale, outputPath: rawPath, signal })
+          synthesis = await jobSpeech.synthesize({ text: spokenText, voiceId: effectiveVoiceId, locale, outputPath: rawPath, signal })
         }
         const actualMs = await renderer.probeDuration(rawPath, signal)
         if (actualMs <= targetMs * 1.2) {
-          if (actualMs > targetMs * 1.005) audioDurationMs = await renderer.calibrateAudio(rawPath, finalPath, targetMs, signal)
+          let wordScale = 1
+          if (actualMs > targetMs * 1.005) { audioDurationMs = await renderer.calibrateAudio(rawPath, finalPath, targetMs, signal); wordScale = audioDurationMs / actualMs }
           else { await copyFile(rawPath, finalPath); audioDurationMs = actualMs }
+          const lineEndMs = Math.min(line.endMs, line.startMs + audioDurationMs)
+          chunks = buildTimedChunks({ chunks: chunksForSubtitle(spokenText, locale), sentences: synthesis?.subtitles, wordScale, lineStartMs: line.startMs, lineEndMs, rawAudioMs: actualMs })
           outputPath = finalPath; break
         }
         if (attempt === 2) throw new Error(`“${line.speaker}：${line.text}”无法在 ${(targetMs / 1000).toFixed(1)} 秒镜头区间内自然说完`)
@@ -216,13 +319,15 @@ export function registerPipelineHandlers(input: {
         spokenText = shortened.text
       }
       if (!outputPath) throw new Error(`配音生成失败：${line.speaker}`)
-      db.updateVoiceAudio(line.id, { audioPath: outputPath, spokenText, voiceId: effectiveVoiceId, audioDurationMs, startMs: line.startMs, endMs: Math.min(line.endMs, line.startMs + audioDurationMs), planVersion: plan.version! })
+      db.updateVoiceAudio(line.id, { audioPath: outputPath, spokenText, voiceId: effectiveVoiceId, audioDurationMs, startMs: line.startMs, endMs: Math.min(line.endMs, line.startMs + audioDurationMs), planVersion: plan.version!, chunks })
+      if (chunks?.length) aligned++
       completed++
       progress((completed / lines.length) * 100, `配音 ${completed}/${lines.length}`, { current: completed, total: lines.length, unit: 'lines' })
       return outputPath
     }, signal)
     db.markDialoguePlanVoiced(episode.id, locale, plan.version)
-    return { count: lines.length, locale, version: plan.version }
+    stage('speech.aligned', '配音完成，字级时间戳对齐字幕', { lines: lines.length, aligned })
+    return { count: lines.length, locale, version: plan.version, aligned }
   })
 
   runner.register('render-episode', async ({ job, progress, signal, stage }) => {
@@ -233,9 +338,11 @@ export function registerPipelineHandlers(input: {
     const plan = db.getDialoguePlan(episode.id, locale); if (!plan || plan.status !== 'voiced' || !plan.version) throw new Error('请先基于当前视频完成对白规划和配音')
     const lines = db.listVoiceLines(episode.id, locale); if (lines.some((line) => !line.audioPath || line.planVersion !== plan.version)) throw new Error('配音与当前视频时间轴不一致，请重新生成配音')
     const voices = lines.map((line) => ({ path: line.audioPath!, startMs: line.startMs }))
+    const overflowing = lines.filter((line) => line.endMs > plan.durationMs)
+    if (overflowing.length) stage('render.timeline_warning', `${overflowing.length} 条字幕尾部超出视频总时长，渲染时将按成片时长截断`, { lines: overflowing.map((line) => line.position), durationMs: plan.durationMs })
     const renderId = db.createRender(episode.id, locale, { width: 1080, height: 1920, fps: 30, subtitle: true })
     try {
-      const result = await renderer.render({ outputDir: join(media.projectDir(project.id), 'renders', renderId), clips, voiceTracks: voices, lines: lines.map((line) => ({ text: line.spokenText, startMs: line.startMs, endMs: line.endMs })), locale, durationMs: plan.durationMs, signal, onStage: stage, onProgress: (value) => progress(value, '正在渲染成片', { current: Math.round(value), total: 100, unit: 'percent' }) })
+      const result = await renderer.render({ outputDir: join(media.projectDir(project.id), 'renders', renderId), clips, voiceTracks: voices, lines: lines.map((line) => ({ text: line.spokenText, startMs: line.startMs, endMs: line.endMs, chunks: line.chunks ?? undefined })), locale, durationMs: plan.durationMs, signal, onStage: stage, onProgress: (value) => progress(value, '正在渲染成片', { current: Math.round(value), total: 100, unit: 'percent' }) })
       db.updateRender(renderId, { status: 'completed', ...result }); db.setProjectStage(project.id, 'publish')
       return { renderId, ...result }
     } catch (error) { db.updateRender(renderId, { status: 'failed' }); throw error }

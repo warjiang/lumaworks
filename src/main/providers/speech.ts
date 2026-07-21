@@ -1,17 +1,35 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import type { ProviderSettings, ProviderTrace, SpeechProvider } from './types'
+import type { ProviderSettings, ProviderTrace, SpeechProvider, SpeechSentenceTiming } from './types'
 
 const SPEECH_ENDPOINT = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional'
 const TTS_COMPLETE_CODE = 20_000_000
+const SUBTITLE_CAPABLE_RESOURCES = new Set(['seed-tts-2.0', 'seed-icl-2.0'])
+
+interface SpeechSentencePayload {
+  text?: string
+  words?: Array<{ word?: string; startTime?: number; endTime?: number }>
+}
 
 interface SpeechStreamPayload {
   code?: number
   message?: string
   data?: string
   usage?: { text_words?: number }
-  sentence?: Record<string, unknown>
+  sentence?: SpeechSentencePayload
+}
+
+function parseSentence(payload: SpeechSentencePayload | undefined): SpeechSentenceTiming | null {
+  if (!payload || !Array.isArray(payload.words)) return null
+  const words = payload.words
+    .filter((word): word is { word: string; startTime: number; endTime: number } => Boolean(word)
+      && typeof word.word === 'string' && Boolean(word.word.trim())
+      && Number.isFinite(word.startTime) && Number.isFinite(word.endTime))
+    .map((word) => ({ word: word.word, startMs: Math.max(0, Math.round(word.startTime * 1000)), endMs: Math.max(0, Math.round(word.endTime * 1000)) }))
+    .filter((word) => word.endMs >= word.startMs)
+  if (!words.length) return null
+  return { text: typeof payload.text === 'string' ? payload.text : '', words }
 }
 
 class SpeechApiError extends Error {
@@ -88,7 +106,7 @@ export class VolcanoSpeechProvider implements SpeechProvider {
 
   resolveVoiceId(locale: 'zh-CN' | 'en-US', override?: string): string { return selectedVoice(this.settings(), locale, override) }
 
-  async synthesize(input: { text: string; voiceId?: string; locale: 'zh-CN' | 'en-US'; outputPath: string; contextTexts?: string[]; signal?: AbortSignal }): Promise<{ path: string; requestId: string; logId?: string; bytes: number; usageTextWords?: number }> {
+  async synthesize(input: { text: string; voiceId?: string; locale: 'zh-CN' | 'en-US'; outputPath: string; contextTexts?: string[]; enableSubtitle?: boolean; signal?: AbortSignal }): Promise<{ path: string; requestId: string; logId?: string; bytes: number; usageTextWords?: number; subtitles?: SpeechSentenceTiming[] }> {
     const config = this.settings()
     if (!input.text.trim()) throw new Error('待合成文本不能为空')
     const requestId = randomUUID()
@@ -99,12 +117,13 @@ export class VolcanoSpeechProvider implements SpeechProvider {
     if (contextTexts.length && resourceId !== 'seed-tts-2.0') {
       throw new Error('语音指令 context_texts 仅支持标准音色资源 seed-tts-2.0，声音复刻音色暂不支持')
     }
+    const subtitleEnabled = input.enableSubtitle !== false && SUBTITLE_CAPABLE_RESOURCES.has(resourceId)
     const additions = contextTexts.length ? JSON.stringify({ context_texts: contextTexts }) : undefined
     const body = {
       req_params: {
         text: input.text,
         speaker: voiceId,
-        audio_params: { format: 'mp3', sample_rate: 24_000 },
+        audio_params: { format: 'mp3', sample_rate: 24_000, ...(subtitleEnabled ? { enable_subtitle: true } : {}) },
         additions,
       },
     }
@@ -115,7 +134,7 @@ export class VolcanoSpeechProvider implements SpeechProvider {
         appIdConfigured: Boolean(config.speechAppId), appIdSuffix: config.speechAppId ? `***${config.speechAppId.slice(-4)}` : '',
         accessTokenConfigured: Boolean(config.speechAccessToken), resourceId,
         voiceId, locale: input.locale, textChars: input.text.length, contextTextCount: contextTexts.length,
-        text: input.text, contextTexts, request: body, format: 'mp3', sampleRate: 24_000, requestId,
+        text: input.text, contextTexts, request: body, format: 'mp3', sampleRate: 24_000, subtitleEnabled, requestId,
       },
     })
 
@@ -142,6 +161,7 @@ export class VolcanoSpeechProvider implements SpeechProvider {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       const audioChunks: Buffer[] = []
+      const subtitles: SpeechSentenceTiming[] = []
       let buffer = ''
       let messageCount = 0
       let finalReceived = false
@@ -152,6 +172,8 @@ export class VolcanoSpeechProvider implements SpeechProvider {
         messageCount++
         if (payload.usage?.text_words !== undefined) usageTextWords = payload.usage.text_words
         if (payload.code === 0) {
+          const sentence = parseSentence(payload.sentence)
+          if (sentence) subtitles.push(sentence)
           if (!payload.data) return
           const chunk = Buffer.from(payload.data, 'base64')
           if (!chunk.length) throw new Error('豆包语音返回了空的音频分片')
@@ -184,9 +206,9 @@ export class VolcanoSpeechProvider implements SpeechProvider {
       await writeFile(input.outputPath, audio)
       this.trace?.({
         level: 'info', phase: 'speech.complete', message: '豆包语音合成 2.0 音频已保存',
-        details: { outputPath: input.outputPath, bytes: audio.length, audioChunks: audioChunks.length, messageCount, finalReceived, usageTextWords, logId, requestId, elapsedMs: Date.now() - startedAt },
+        details: { outputPath: input.outputPath, bytes: audio.length, audioChunks: audioChunks.length, messageCount, finalReceived, usageTextWords, subtitleSentences: subtitles.length, subtitleWords: subtitles.reduce((sum, sentence) => sum + sentence.words.length, 0), logId, requestId, elapsedMs: Date.now() - startedAt },
       })
-      return { path: input.outputPath, requestId, logId, bytes: audio.length, usageTextWords }
+      return { path: input.outputPath, requestId, logId, bytes: audio.length, usageTextWords, subtitles: subtitles.length ? subtitles : undefined }
     } catch (error) {
       if (error instanceof SpeechApiError) {
         this.trace?.({ level: 'error', phase: 'speech.error', message: error.message, details: { httpStatus: error.status, code: error.code, logId: error.logId ?? logId, requestId, elapsedMs: Date.now() - startedAt } })

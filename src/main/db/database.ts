@@ -3,11 +3,56 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { CharacterVoice, ContentLocale, CreateProjectInput, DashboardSnapshot, DiagnosticLevel, DiagnosticScope, DialoguePlanSummary, Episode, Job, JobType, Project, PublishDraft, PublishDraftInput, Shot, StoryBible, VoiceLine, VoicePresetId } from '@shared/domain'
+import type { CharacterVoice, ContentLocale, CreateProjectInput, DashboardSnapshot, DiagnosticLevel, DiagnosticScope, DialoguePlanSummary, Episode, Job, JobType, Project, PublishDraft, PublishDraftInput, Shot, ShotDirection, StoryBible, VoiceLine, VoicePresetId } from '@shared/domain'
 import { inferVoicePreset, voicePreset } from '@shared/voices'
 import * as schema from './schema'
 
 const now = () => new Date().toISOString()
+
+const SHOT_SELECT = `id, episode_id episodeId, position, title, description, image_prompt imagePrompt, video_prompt videoPrompt, duration_seconds durationSeconds, status, characters_json charactersJson, direction_json directionJson, image_path imagePath, video_path videoPath, updated_at updatedAt`
+
+function parseCharactersJson(value: unknown): string[] {
+  if (typeof value !== 'string' || !value) return []
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : []
+  } catch { return [] }
+}
+
+function parseDirectionJson(value: unknown): ShotDirection | null {
+  if (typeof value !== 'string' || !value) return null
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>
+    if (!parsed || typeof parsed !== 'object') return null
+    const text = (key: keyof ShotDirection): string => typeof parsed[key] === 'string' ? parsed[key] as string : ''
+    const direction: ShotDirection = { sceneType: text('sceneType') || 'daily', shotType: text('shotType'), cameraMove: text('cameraMove'), location: text('location'), sourceText: text('sourceText'), carryOver: text('carryOver'), actingNotes: text('actingNotes') }
+    if (!direction.shotType && !direction.cameraMove && !direction.location && !direction.sourceText && !direction.carryOver && !direction.actingNotes) return null
+    return direction
+  } catch { return null }
+}
+
+function parseChunksJson(value: unknown): VoiceLine['chunks'] {
+  if (typeof value !== 'string' || !value) return null
+  try {
+    const parsed = JSON.parse(value) as unknown
+    if (!Array.isArray(parsed)) return null
+    const chunks = parsed.filter((item): item is { text: string; startMs: number; endMs: number } => Boolean(item) && typeof item === 'object'
+      && typeof (item as { text?: unknown }).text === 'string'
+      && Number.isFinite((item as { startMs?: unknown }).startMs)
+      && Number.isFinite((item as { endMs?: unknown }).endMs))
+    return chunks.length ? chunks : null
+  } catch { return null }
+}
+
+function mapShotRow(row: Record<string, unknown>): Shot {
+  const { charactersJson, directionJson, ...rest } = row
+  return { ...rest, characters: parseCharactersJson(charactersJson), direction: parseDirectionJson(directionJson) } as Shot
+}
+
+function mapVoiceLineRow(row: Record<string, unknown>): VoiceLine {
+  const { chunksJson, ...rest } = row
+  return { ...rest, chunks: parseChunksJson(chunksJson) } as VoiceLine
+}
 
 const JOB_SELECT = `SELECT id,type,status,entity_id entityId,project_id projectId,payload_json payloadJson,result_json resultJson,error,progress,progress_mode progressMode,current_phase currentPhase,current_message currentMessage,attempts,max_attempts maxAttempts,scheduled_at scheduledAt,started_at startedAt,finished_at finishedAt,heartbeat_at heartbeatAt,idempotency_key idempotencyKey,created_at createdAt,updated_at updatedAt FROM jobs`
 
@@ -86,6 +131,9 @@ export class AppDatabase {
     this.addColumnIfMissing('voice_lines', 'line_voice_id', 'TEXT')
     this.addColumnIfMissing('voice_lines', 'audio_duration_ms', 'INTEGER')
     this.addColumnIfMissing('voice_lines', 'plan_version', 'TEXT')
+    this.addColumnIfMissing('voice_lines', 'chunks_json', 'TEXT')
+    this.addColumnIfMissing('shots', 'characters_json', 'TEXT')
+    this.addColumnIfMissing('shots', 'direction_json', 'TEXT')
     this.sqlite.exec(`UPDATE voice_lines SET spoken_text=COALESCE(spoken_text,text),original_start_ms=COALESCE(original_start_ms,start_ms),original_end_ms=COALESCE(original_end_ms,end_ms)`)
     this.sqlite.exec(`CREATE INDEX IF NOT EXISTS jobs_project_idx ON jobs(project_id, created_at)`)
     this.backfillCharacterVoices()
@@ -109,19 +157,36 @@ export class AppDatabase {
   }
 
   private backfillCharacterVoices(): void {
-    const projects = this.sqlite.prepare(`SELECT project_id projectId,content_json contentJson FROM story_bibles`).all() as Array<{ projectId: string; contentJson: string }>
-    const update = this.sqlite.prepare(`UPDATE characters SET voice_description=?,voice_preset=?,zh_voice_id=?,en_voice_id=?,updated_at=? WHERE project_id=? AND name=? AND COALESCE(voice_locked,0)=0`)
-    for (const project of projects) {
-      let bible: StoryBible
-      try { bible = JSON.parse(project.contentJson) as StoryBible } catch { continue }
-      const used = new Set<VoicePresetId>()
-      for (const character of bible.characters ?? []) {
-        const row = this.sqlite.prepare(`SELECT description,role FROM characters WHERE project_id=? AND name=?`).get(project.projectId, character.name) as { description: string; role: string } | undefined
-        if (!row) continue
-        const presetId = inferVoicePreset({ name: character.name, role: row.role, description: row.description, voiceDescription: character.voice }, used); used.add(presetId); const preset = voicePreset(presetId)
-        update.run(character.voice, presetId, preset.zhVoiceId, preset.enVoiceId, now(), project.projectId, character.name)
-      }
+    const projects = this.sqlite.prepare(`SELECT project_id projectId FROM story_bibles`).all() as Array<{ projectId: string }>
+    for (const project of projects) this.assignProjectVoices(project.projectId, false)
+  }
+
+  reassignCharacterVoices(projectId: string): number {
+    const changed = this.assignProjectVoices(projectId, true)
+    if (changed) {
+      const episodes = this.sqlite.prepare(`SELECT id FROM episodes WHERE project_id=?`).all(projectId) as Array<{ id: string }>
+      for (const episode of episodes) this.invalidateDialoguePlans(episode.id)
     }
+    return changed
+  }
+
+  private assignProjectVoices(projectId: string, force: boolean): number {
+    const row = this.sqlite.prepare(`SELECT content_json contentJson FROM story_bibles WHERE project_id=?`).get(projectId) as { contentJson: string } | undefined
+    if (!row) return 0
+    let bible: StoryBible
+    try { bible = JSON.parse(row.contentJson) as StoryBible } catch { return 0 }
+    const update = this.sqlite.prepare(`UPDATE characters SET voice_description=?,voice_preset=?,zh_voice_id=?,en_voice_id=?,zh_voice_warning=NULL,en_voice_warning=NULL,voice_locked=?,updated_at=? WHERE project_id=? AND name=?`)
+    const used = new Set<VoicePresetId>()
+    let changed = 0
+    for (const character of bible.characters ?? []) {
+      const existing = this.sqlite.prepare(`SELECT description,role,COALESCE(voice_locked,0) voiceLocked FROM characters WHERE project_id=? AND name=?`).get(projectId, character.name) as { description: string; role: string; voiceLocked: number } | undefined
+      if (!existing || (!force && existing.voiceLocked)) continue
+      const presetId = inferVoicePreset({ name: character.name, role: existing.role, description: existing.description, voiceDescription: character.voice }, used)
+      used.add(presetId); const preset = voicePreset(presetId)
+      update.run(character.voice, presetId, preset.zhVoiceId, preset.enVoiceId, force ? 0 : existing.voiceLocked, now(), projectId, character.name)
+      changed++
+    }
+    return changed
   }
 
   close(): void { this.sqlite.close() }
@@ -156,11 +221,16 @@ export class AppDatabase {
   }
 
   listShotsForEpisode(episodeId: string): Shot[] {
-    return this.sqlite.prepare(`SELECT id, episode_id episodeId, position, title, description, image_prompt imagePrompt, video_prompt videoPrompt, duration_seconds durationSeconds, status, image_path imagePath, video_path videoPath, updated_at updatedAt FROM shots WHERE episode_id=? ORDER BY position`).all(episodeId) as Shot[]
+    return (this.sqlite.prepare(`SELECT ${SHOT_SELECT} FROM shots WHERE episode_id=? ORDER BY position`).all(episodeId) as Array<Record<string, unknown>>).map(mapShotRow)
+  }
+
+  getNextShot(episodeId: string, position: number): Shot | null {
+    const row = this.sqlite.prepare(`SELECT ${SHOT_SELECT} FROM shots WHERE episode_id=? AND position>? ORDER BY position LIMIT 1`).get(episodeId, position) as Record<string, unknown> | undefined
+    return row ? mapShotRow(row) : null
   }
 
   listCharacters(projectId: string): CharacterVoice[] {
-    const rows = this.sqlite.prepare(`SELECT id,project_id projectId,name,role,description,COALESCE(voice_description,'') voiceDescription,COALESCE(voice_preset,'narrator') voicePreset,COALESCE(zh_voice_id,voice_id,'zh_female_vv_uranus_bigtts') zhVoiceId,COALESCE(en_voice_id,'en_female_dacey_uranus_bigtts') enVoiceId,zh_voice_warning zhVoiceWarning,en_voice_warning enVoiceWarning,COALESCE(voice_locked,0) voiceLocked FROM characters WHERE project_id=? ORDER BY created_at,name`).all(projectId) as Array<Omit<CharacterVoice, 'voiceLocked'> & { voiceLocked: number }>
+    const rows = this.sqlite.prepare(`SELECT id,project_id projectId,name,role,description,COALESCE(voice_description,'') voiceDescription,COALESCE(voice_preset,'narrator') voicePreset,COALESCE(zh_voice_id,voice_id,'zh_female_vv_uranus_bigtts') zhVoiceId,COALESCE(en_voice_id,'en_female_dacey_uranus_bigtts') enVoiceId,zh_voice_warning zhVoiceWarning,en_voice_warning enVoiceWarning,COALESCE(voice_locked,0) voiceLocked,reference_asset_id referenceAssetId FROM characters WHERE project_id=? ORDER BY created_at,name`).all(projectId) as Array<Omit<CharacterVoice, 'voiceLocked'> & { voiceLocked: number }>
     return rows.map((row) => ({ ...row, voiceLocked: Boolean(row.voiceLocked) }))
   }
 
@@ -177,25 +247,25 @@ export class AppDatabase {
   }
 
   getCharacterVoice(projectId: string, speaker: string): CharacterVoice | null {
-    const row = this.sqlite.prepare(`SELECT id,project_id projectId,name,role,description,COALESCE(voice_description,'') voiceDescription,COALESCE(voice_preset,'narrator') voicePreset,COALESCE(zh_voice_id,voice_id,'zh_female_vv_uranus_bigtts') zhVoiceId,COALESCE(en_voice_id,'en_female_dacey_uranus_bigtts') enVoiceId,zh_voice_warning zhVoiceWarning,en_voice_warning enVoiceWarning,COALESCE(voice_locked,0) voiceLocked FROM characters WHERE project_id=? AND name=?`).get(projectId, speaker) as (Omit<CharacterVoice, 'voiceLocked'> & { voiceLocked: number }) | undefined
+    const row = this.sqlite.prepare(`SELECT id,project_id projectId,name,role,description,COALESCE(voice_description,'') voiceDescription,COALESCE(voice_preset,'narrator') voicePreset,COALESCE(zh_voice_id,voice_id,'zh_female_vv_uranus_bigtts') zhVoiceId,COALESCE(en_voice_id,'en_female_dacey_uranus_bigtts') enVoiceId,zh_voice_warning zhVoiceWarning,en_voice_warning enVoiceWarning,COALESCE(voice_locked,0) voiceLocked,reference_asset_id referenceAssetId FROM characters WHERE project_id=? AND name=?`).get(projectId, speaker) as (Omit<CharacterVoice, 'voiceLocked'> & { voiceLocked: number }) | undefined
     return row ? { ...row, voiceLocked: Boolean(row.voiceLocked) } : null
   }
 
   getCharacterVoiceById(id: string): CharacterVoice | null {
-    const row = this.sqlite.prepare(`SELECT id,project_id projectId,name,role,description,COALESCE(voice_description,'') voiceDescription,COALESCE(voice_preset,'narrator') voicePreset,COALESCE(zh_voice_id,voice_id,'zh_female_vv_uranus_bigtts') zhVoiceId,COALESCE(en_voice_id,'en_female_dacey_uranus_bigtts') enVoiceId,zh_voice_warning zhVoiceWarning,en_voice_warning enVoiceWarning,COALESCE(voice_locked,0) voiceLocked FROM characters WHERE id=?`).get(id) as (Omit<CharacterVoice, 'voiceLocked'> & { voiceLocked: number }) | undefined
+    const row = this.sqlite.prepare(`SELECT id,project_id projectId,name,role,description,COALESCE(voice_description,'') voiceDescription,COALESCE(voice_preset,'narrator') voicePreset,COALESCE(zh_voice_id,voice_id,'zh_female_vv_uranus_bigtts') zhVoiceId,COALESCE(en_voice_id,'en_female_dacey_uranus_bigtts') enVoiceId,zh_voice_warning zhVoiceWarning,en_voice_warning enVoiceWarning,COALESCE(voice_locked,0) voiceLocked,reference_asset_id referenceAssetId FROM characters WHERE id=?`).get(id) as (Omit<CharacterVoice, 'voiceLocked'> & { voiceLocked: number }) | undefined
     return row ? { ...row, voiceLocked: Boolean(row.voiceLocked) } : null
   }
 
   listVoiceLines(episodeId: string, locale: ContentLocale): VoiceLine[] {
-    return this.sqlite.prepare(`SELECT id,episode_id episodeId,shot_id shotId,shot_position shotPosition,locale,position,speaker,text,COALESCE(spoken_text,text) spokenText,COALESCE(original_start_ms,start_ms) originalStartMs,COALESCE(original_end_ms,end_ms) originalEndMs,start_ms startMs,end_ms endMs,line_voice_id voiceId,audio_path audioPath,audio_duration_ms audioDurationMs,plan_version planVersion FROM voice_lines WHERE episode_id=? AND locale=? ORDER BY position`).all(episodeId, locale) as VoiceLine[]
+    return (this.sqlite.prepare(`SELECT id,episode_id episodeId,shot_id shotId,shot_position shotPosition,locale,position,speaker,text,COALESCE(spoken_text,text) spokenText,COALESCE(original_start_ms,start_ms) originalStartMs,COALESCE(original_end_ms,end_ms) originalEndMs,start_ms startMs,end_ms endMs,line_voice_id voiceId,audio_path audioPath,audio_duration_ms audioDurationMs,plan_version planVersion,chunks_json chunksJson FROM voice_lines WHERE episode_id=? AND locale=? ORDER BY position`).all(episodeId, locale) as Array<Record<string, unknown>>).map(mapVoiceLineRow)
   }
 
-  updateVoiceAudio(id: string, input: { audioPath: string; spokenText: string; voiceId: string; audioDurationMs: number; startMs: number; endMs: number; planVersion: string }): void {
-    this.sqlite.prepare(`UPDATE voice_lines SET audio_path=@audioPath,spoken_text=@spokenText,line_voice_id=@voiceId,audio_duration_ms=@audioDurationMs,start_ms=@startMs,end_ms=@endMs,plan_version=@planVersion,updated_at=@updatedAt WHERE id=@id`).run({ id, ...input, updatedAt: now() })
+  updateVoiceAudio(id: string, input: { audioPath: string; spokenText: string; voiceId: string; audioDurationMs: number; startMs: number; endMs: number; planVersion: string; chunks?: VoiceLine['chunks'] }): void {
+    this.sqlite.prepare(`UPDATE voice_lines SET audio_path=@audioPath,spoken_text=@spokenText,line_voice_id=@voiceId,audio_duration_ms=@audioDurationMs,start_ms=@startMs,end_ms=@endMs,plan_version=@planVersion,chunks_json=@chunksJson,updated_at=@updatedAt WHERE id=@id`).run({ id, ...input, chunksJson: input.chunks ? JSON.stringify(input.chunks) : null, updatedAt: now() })
   }
 
   applyDialoguePlan(episodeId: string, locale: ContentLocale, version: string, durationMs: number, lines: Array<{ id: string; shotId: string; shotPosition: number; startMs: number; endMs: number }>): void {
-    const update = this.sqlite.prepare(`UPDATE voice_lines SET shot_id=@shotId,shot_position=@shotPosition,start_ms=@startMs,end_ms=@endMs,spoken_text=text,audio_path=NULL,audio_duration_ms=NULL,line_voice_id=NULL,plan_version=@version,updated_at=@updatedAt WHERE id=@id AND episode_id=@episodeId AND locale=@locale`)
+    const update = this.sqlite.prepare(`UPDATE voice_lines SET shot_id=@shotId,shot_position=@shotPosition,start_ms=@startMs,end_ms=@endMs,spoken_text=text,audio_path=NULL,audio_duration_ms=NULL,line_voice_id=NULL,plan_version=@version,chunks_json=NULL,updated_at=@updatedAt WHERE id=@id AND episode_id=@episodeId AND locale=@locale`)
     this.sqlite.transaction(() => {
       for (const line of lines) update.run({ ...line, episodeId, locale, version, updatedAt: now() })
       this.sqlite.prepare(`INSERT INTO dialogue_plans(episode_id,locale,status,version,duration_ms,line_count,updated_at) VALUES(?,?,'ready',?,?,?,?) ON CONFLICT(episode_id,locale) DO UPDATE SET status='ready',version=excluded.version,duration_ms=excluded.duration_ms,line_count=excluded.line_count,updated_at=excluded.updated_at`).run(episodeId, locale, version, durationMs, lines.length, now())
@@ -241,11 +311,34 @@ export class AppDatabase {
   }
 
   listShotsForProject(projectId: string): Shot[] {
-    return this.sqlite.prepare(`SELECT s.id, s.episode_id episodeId, s.position, s.title, s.description, s.image_prompt imagePrompt, s.video_prompt videoPrompt, s.duration_seconds durationSeconds, s.status, s.image_path imagePath, s.video_path videoPath, s.updated_at updatedAt FROM shots s JOIN episodes e ON e.id=s.episode_id WHERE e.project_id=? ORDER BY e.number,s.position`).all(projectId) as Shot[]
+    return (this.sqlite.prepare(`SELECT s.id, s.episode_id episodeId, s.position, s.title, s.description, s.image_prompt imagePrompt, s.video_prompt videoPrompt, s.duration_seconds durationSeconds, s.status, s.characters_json charactersJson, s.image_path imagePath, s.video_path videoPath, s.updated_at updatedAt FROM shots s JOIN episodes e ON e.id=s.episode_id WHERE e.project_id=? ORDER BY e.number,s.position`).all(projectId) as Array<Record<string, unknown>>).map(mapShotRow)
   }
 
   getShot(id: string): Shot | null {
-    return (this.sqlite.prepare(`SELECT id, episode_id episodeId, position, title, description, image_prompt imagePrompt, video_prompt videoPrompt, duration_seconds durationSeconds, status, image_path imagePath, video_path videoPath, updated_at updatedAt FROM shots WHERE id=?`).get(id) as Shot | undefined) ?? null
+    const row = this.sqlite.prepare(`SELECT ${SHOT_SELECT} FROM shots WHERE id=?`).get(id) as Record<string, unknown> | undefined
+    return row ? mapShotRow(row) : null
+  }
+
+  getShotReferencePaths(shotId: string): string[] {
+    const shot = this.getShot(shotId); if (!shot) return []
+    const episode = this.getEpisode(shot.episodeId); if (!episode) return []
+    const references = this.sqlite.prepare(`SELECT c.name, a.path FROM characters c JOIN assets a ON a.id=c.reference_asset_id WHERE c.project_id=? ORDER BY c.created_at`).all(episode.projectId) as Array<{ name: string; path: string }>
+    if (!references.length) return []
+    const names = new Set(shot.characters)
+    if (!names.size) {
+      const speakers = this.sqlite.prepare(`SELECT DISTINCT speaker FROM voice_lines WHERE episode_id=? AND locale='zh-CN' AND (shot_id=? OR shot_position=?)`).all(shot.episodeId, shot.id, shot.position) as Array<{ speaker: string }>
+      for (const row of speakers) names.add(row.speaker)
+    }
+    if (!names.size) {
+      const haystack = `${shot.title}\n${shot.description}\n${shot.imagePrompt}\n${shot.videoPrompt}`
+      for (const reference of references) if (reference.name && haystack.includes(reference.name)) names.add(reference.name)
+    }
+    return references.filter((reference) => names.has(reference.name)).map((reference) => reference.path).slice(0, 10)
+  }
+
+  setCharacterReferenceAsset(id: string, assetId: string): void {
+    const result = this.sqlite.prepare(`UPDATE characters SET reference_asset_id=?,updated_at=? WHERE id=?`).run(assetId, now(), id)
+    if (!result.changes) throw new Error('角色不存在')
   }
 
   listJobs(): Job[] {
@@ -294,6 +387,7 @@ export class AppDatabase {
     if (type === 'shot-image' || type === 'shot-video') {
       return (this.sqlite.prepare(`SELECT e.project_id projectId FROM shots s JOIN episodes e ON e.id=s.episode_id WHERE s.id=?`).get(entityId) as { projectId: string } | undefined)?.projectId ?? null
     }
+    if (type === 'shot-grid-image') return this.getEpisode(entityId)?.projectId ?? null
     if (type === 'dialogue-timing' || type === 'voice-line' || type === 'translate-episode' || type === 'render-episode') return this.getEpisode(entityId)?.projectId ?? null
     if (type === 'publish') {
       return (this.sqlite.prepare(`SELECT e.project_id projectId FROM publish_drafts d JOIN render_variants r ON r.id=d.render_id JOIN episodes e ON e.id=r.episode_id WHERE d.id=?`).get(entityId) as { projectId: string } | undefined)?.projectId ?? null
@@ -393,14 +487,14 @@ export class AppDatabase {
 
   replaceBibleEntities(projectId: string, bible: Pick<StoryBible, 'characters' | 'locations'>): void {
     const stamp = now(); const existing = new Map(this.listCharacters(projectId).map((item) => [item.name, item])); this.sqlite.prepare(`DELETE FROM characters WHERE project_id=?`).run(projectId); this.sqlite.prepare(`DELETE FROM locations WHERE project_id=?`).run(projectId)
-    const insertCharacter = this.sqlite.prepare(`INSERT INTO characters(id,project_id,name,role,description,voice_id,reference_asset_id,created_at,updated_at,voice_description,voice_preset,zh_voice_id,en_voice_id,voice_locked) VALUES(?,?,?,?,?,NULL,NULL,?,?,?,?,?,?,?)`)
+    const insertCharacter = this.sqlite.prepare(`INSERT INTO characters(id,project_id,name,role,description,voice_id,reference_asset_id,created_at,updated_at,voice_description,voice_preset,zh_voice_id,en_voice_id,voice_locked) VALUES(?,?,?,?,?,NULL,?,?,?,?,?,?,?,?)`)
     const insertLocation = this.sqlite.prepare(`INSERT INTO locations VALUES(?,?,?,?,NULL,?,?)`)
     const used = new Set<VoicePresetId>()
     bible.characters.forEach((item) => {
       const previous = existing.get(item.name); const description = `${String(item.appearance ?? '')}\n${String(item.personality ?? '')}`; const voiceDescription = String(item.voice ?? '')
       const presetId = previous?.voiceLocked ? previous.voicePreset : inferVoicePreset({ name: item.name, role: item.role, description, voiceDescription }, used)
       used.add(presetId); const preset = voicePreset(presetId)
-      insertCharacter.run(previous?.id ?? randomUUID(), projectId, item.name, item.role, description, stamp, stamp, voiceDescription, presetId, previous?.voiceLocked ? previous.zhVoiceId : preset.zhVoiceId, previous?.voiceLocked ? previous.enVoiceId : preset.enVoiceId, previous?.voiceLocked ? 1 : 0)
+      insertCharacter.run(previous?.id ?? randomUUID(), projectId, item.name, item.role, description, previous?.referenceAssetId ?? null, stamp, stamp, voiceDescription, presetId, previous?.voiceLocked ? previous.zhVoiceId : preset.zhVoiceId, previous?.voiceLocked ? previous.enVoiceId : preset.enVoiceId, previous?.voiceLocked ? 1 : 0)
     })
     bible.locations.forEach((item) => insertLocation.run(randomUUID(), projectId, String(item.name ?? ''), `${String(item.description ?? '')}\n${String(item.visualPrompt ?? '')}`, stamp, stamp))
   }
@@ -413,10 +507,10 @@ export class AppDatabase {
     const stamp = now(); const id = (this.sqlite.prepare(`SELECT id FROM episodes WHERE project_id=? AND number=1`).get(projectId) as { id: string } | undefined)?.id ?? randomUUID()
     this.sqlite.prepare(`INSERT INTO episodes(id,project_id,number,title,summary,script_json,approved,created_at,updated_at) VALUES(?,?,1,?,?,?,0,?,?) ON CONFLICT(project_id,number) DO UPDATE SET title=excluded.title,summary=excluded.summary,script_json=excluded.script_json,updated_at=excluded.updated_at`).run(id, projectId, script.title, script.summary, JSON.stringify(script), stamp, stamp)
     this.sqlite.prepare(`DELETE FROM shots WHERE episode_id=?`).run(id)
-    const insertShot = this.sqlite.prepare(`INSERT INTO shots VALUES(?,?,?,?,?,?,?,?,'draft',NULL,NULL,?,?)`)
+    const insertShot = this.sqlite.prepare(`INSERT INTO shots(id,episode_id,position,title,description,image_prompt,video_prompt,duration_seconds,status,image_path,video_path,created_at,updated_at,characters_json,direction_json) VALUES(?,?,?,?,?,?,?,?,'draft',NULL,NULL,?,?,?,?)`)
     const insertLine = this.sqlite.prepare(`INSERT INTO voice_lines(id,episode_id,shot_id,locale,position,speaker,text,start_ms,end_ms,audio_path,created_at,updated_at,shot_position,spoken_text,original_start_ms,original_end_ms) VALUES(?,?,NULL,'zh-CN',?,?,?,?,?,NULL,?,?,?,?,?,?)`)
     this.sqlite.prepare(`DELETE FROM voice_lines WHERE episode_id=?`).run(id)
-    script.shots.forEach((shot, index) => insertShot.run(randomUUID(), id, index + 1, String(shot.title ?? `镜头 ${index + 1}`), String(shot.description ?? ''), String(shot.imagePrompt ?? ''), String(shot.videoPrompt ?? ''), Number(shot.durationSeconds ?? 5), stamp, stamp))
+    script.shots.forEach((shot, index) => insertShot.run(randomUUID(), id, index + 1, String(shot.title ?? `镜头 ${index + 1}`), String(shot.description ?? ''), String(shot.imagePrompt ?? ''), String(shot.videoPrompt ?? ''), Number(shot.durationSeconds ?? 5), stamp, stamp, JSON.stringify(Array.isArray(shot.characters) ? shot.characters.filter((name): name is string => typeof name === 'string' && Boolean(name.trim())) : []), JSON.stringify(shot.direction && typeof shot.direction === 'object' ? shot.direction : {})))
     ;(script.dialogue ?? []).forEach((line, index) => { const startMs = Number(line.startMs ?? index * 4000); const endMs = Number(line.endMs ?? (index + 1) * 4000); const text = String(line.text ?? ''); insertLine.run(randomUUID(), id, index + 1, String(line.speaker ?? '旁白'), text, startMs, endMs, stamp, stamp, Number(line.shotPosition ?? 0) || null, text, startMs, endMs) })
     this.sqlite.prepare(`DELETE FROM dialogue_plans WHERE episode_id=?`).run(id)
     return id

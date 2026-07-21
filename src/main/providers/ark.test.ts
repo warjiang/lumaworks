@@ -88,6 +88,41 @@ describe('Ark Responses API', () => {
     await expect(provider.generateJson('test', (value) => schema.parse(value), { contractName: '故事圣经' }))
       .rejects.toThrow('故事圣经结构校验失败，自动修复后仍不符合要求：characters[0].role: 缺少必填字段')
   })
+
+  it('lowers reasoning effort for Seed 2.x models and uses minimal effort for repairs', async () => {
+    const outputs = ['{"reply":', '{"reply":"fixed"}']
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ output: [{ content: [{ type: 'output_text', text: outputs.shift() }] }] }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const provider = new ArkProvider(() => ({ ...baseSettings, arkTextModel: 'doubao-seed-2-1-turbo-260628', arkTextStream: false }))
+    await provider.generateJson('test', (value) => z.object({ reply: z.string() }).parse(value))
+    const generateBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<string, unknown>
+    const repairBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body)) as Record<string, unknown>
+    expect(generateBody.reasoning).toEqual({ effort: 'low' })
+    expect(repairBody.reasoning).toEqual({ effort: 'minimal' })
+  })
+
+  it('omits the reasoning field for models that do not support it', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({ output: [{ content: [{ type: 'output_text', text: '{"reply":"ok"}' }] }] }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const provider = new ArkProvider(() => ({ ...baseSettings, arkTextModel: 'doubao-seed-1-6-250615', arkTextStream: false }))
+    await provider.generateJson('test', (value) => z.object({ reply: z.string() }).parse(value))
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<string, unknown>
+    expect(body).not.toHaveProperty('reasoning')
+  })
+
+  it('converts internal request timeouts into a clear retryable error', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.stubGlobal('fetch', vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })))
+      })))
+      const provider = new ArkProvider(() => ({ ...baseSettings, arkTextStream: false }))
+      const promise = provider.generateJson('test', (value) => z.object({ reply: z.string() }).parse(value))
+      const assertion = expect(promise).rejects.toThrow('火山方舟文本生成超过 600 秒仍未完成')
+      await vi.advanceTimersByTimeAsync(600_000)
+      await assertion
+    } finally { vi.useRealTimers() }
+  })
 })
 
 describe('Ark Seedream API', () => {
@@ -158,12 +193,18 @@ describe('Ark Seedance API', () => {
 
   it('builds official first-frame and first/last-frame content roles', () => {
     const first = buildSeedanceRequest({ model: baseSettings.seedanceModel, prompt: 'move', firstFrameUrl: 'data:image/png;base64,AA==', durationSeconds: 3 })
-    expect(first.body).toMatchObject({ resolution: '720p', ratio: '9:16', duration: 4, generate_audio: false, watermark: false })
+    expect(first.body).toMatchObject({ resolution: '1080p', ratio: '9:16', duration: 4, generate_audio: false, watermark: false })
     expect(first.body.content[1]).toMatchObject({ type: 'image_url', role: 'first_frame' })
 
     const both = buildSeedanceRequest({ model: baseSettings.seedanceModel, prompt: 'move', firstFrameUrl: 'first', lastFrameUrl: 'last', durationSeconds: 15, returnLastFrame: true })
     expect(both.body.content.map((item) => 'role' in item ? item.role : item.type)).toEqual(['text', 'first_frame', 'last_frame'])
     expect(both.body.return_last_frame).toBe(true)
+  })
+
+  it('defaults to 1080p for Seedance 2.x, 720p for older models, and honors explicit overrides', () => {
+    expect(buildSeedanceRequest({ model: 'doubao-seedance-2-0-260128', prompt: 'move', firstFrameUrl: 'first' }).body.resolution).toBe('1080p')
+    expect(buildSeedanceRequest({ model: 'doubao-seedance-1-5-pro-260128', prompt: 'move', firstFrameUrl: 'first' }).body.resolution).toBe('720p')
+    expect(buildSeedanceRequest({ model: 'doubao-seedance-2-0-fast-260128', prompt: 'move', firstFrameUrl: 'first', resolution: '720p' }).body.resolution).toBe('720p')
   })
 
   it('omits generate_audio for 1.0 models and rejects unsupported fast-model last frames', () => {
@@ -198,7 +239,7 @@ describe('Ark Seedance API', () => {
     const result = await provider.generateVideo({ prompt: 'move', imagePath: testImagePath, durationSeconds: 4, returnLastFrame: true })
     expect(result).toEqual({ url: 'https://example.test/video.mp4', externalId: 'cgt-test', lastFrameUrl: 'https://example.test/last.png' })
     const createBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<string, unknown>
-    expect(createBody).toMatchObject({ model: baseSettings.seedanceModel, resolution: '720p', ratio: '9:16', duration: 4, generate_audio: false, return_last_frame: true, watermark: false })
+    expect(createBody).toMatchObject({ model: baseSettings.seedanceModel, resolution: '1080p', ratio: '9:16', duration: 4, generate_audio: false, return_last_frame: true, watermark: false })
     expect(fetchMock.mock.calls.slice(1).every((call) => call[1]?.method === 'GET')).toBe(true)
   })
 

@@ -5,6 +5,26 @@ import { buildSeedanceRequest, buildSeedreamRequest, extractSeedreamUrl, isSeeda
 import type { ImageProvider, ProgressReporter, ProviderSettings, ProviderTrace, TextProvider, VideoProvider } from './types'
 
 const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+const TEXT_RESPONSES_TIMEOUT_MS = 600_000
+const TEXT_CHAT_TIMEOUT_MS = 300_000
+
+/**
+ * reasoning.effort is only accepted by newer Seed models on the Responses API
+ * (seed-2.x, seed-1-8, seed-1-6-251015, seed-evolving). Older models reject the
+ * field, so it must be attached conditionally.
+ */
+function supportsReasoningEffort(model: string): boolean {
+  const id = model.toLowerCase().replace(/[_.]/g, '-')
+  return /seed-2/.test(id) || /seed-1-8/.test(id) || /seed-1-6-251015/.test(id) || /seed-evolving/.test(id)
+}
+
+function isInternalTimeout(error: unknown, externalSignal?: AbortSignal): boolean {
+  return error instanceof Error && error.name === 'AbortError' && !externalSignal?.aborted
+}
+
+function timeoutError(timeoutMs: number): Error {
+  return new Error(`火山方舟文本生成超过 ${Math.round(timeoutMs / 1000)} 秒仍未完成，任务已自动安排重试；若持续超时请稍后重试或检查模型服务状态`)
+}
 
 class ProviderHttpError extends Error {
   constructor(message: string, readonly status: number, readonly retryable: boolean) { super(message) }
@@ -33,6 +53,10 @@ async function requestJson<T>(url: string, init: RequestInit, timeoutMs = 120_00
     return payload as T
   } catch (error) {
     if (error instanceof ProviderHttpError) throw error
+    if (isInternalTimeout(error, externalSignal)) {
+      trace?.({ level: 'error', phase: 'http.timeout', message: `请求超过 ${Math.round(timeoutMs / 1000)} 秒未完成`, details: { elapsedMs: Date.now() - startedAt, timeoutMs, endpoint: new URL(url).pathname } })
+      throw timeoutError(timeoutMs)
+    }
     trace?.({ level: 'error', phase: 'http.exception', message: error instanceof Error ? error.message : String(error), details: { elapsedMs: Date.now() - startedAt, errorName: error instanceof Error ? error.name : 'UnknownError' } })
     throw error
   } finally { clearTimeout(timer); externalSignal?.removeEventListener('abort', onAbort) }
@@ -94,6 +118,7 @@ async function requestResponsesStream(url: string, init: RequestInit, timeoutMs:
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs); const startedAt = Date.now()
   const onAbort = (): void => controller.abort()
   externalSignal?.addEventListener('abort', onAbort, { once: true })
+  let text = ''; let eventCount = 0
   trace?.({ level: 'info', phase: 'http.request', message: '开始请求火山方舟 Responses SSE', details: { method: init.method ?? 'POST', endpoint: new URL(url).pathname, timeoutMs, stream: true } })
   try {
     const response = await fetch(url, { ...init, signal: controller.signal })
@@ -107,7 +132,7 @@ async function requestResponsesStream(url: string, init: RequestInit, timeoutMs:
     }
     if (!response.body) throw new Error('Responses SSE 没有返回响应流')
     trace?.({ level: 'info', phase: 'http.response', message: `Responses SSE 已连接，HTTP ${response.status}`, details: { status: response.status, requestId, contentType: response.headers.get('content-type') } })
-    const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let text = ''; let responseId: string | undefined; let eventCount = 0
+    const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let responseId: string | undefined
     const consumeEvent = (block: string): void => {
       const data = block.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n')
       if (!data || data === '[DONE]') return
@@ -135,6 +160,10 @@ async function requestResponsesStream(url: string, init: RequestInit, timeoutMs:
     return { text, responseId }
   } catch (error) {
     if (error instanceof ProviderHttpError) throw error
+    if (isInternalTimeout(error, externalSignal)) {
+      trace?.({ level: 'error', phase: 'http.timeout', message: `Responses SSE 超过 ${Math.round(timeoutMs / 1000)} 秒未生成完成`, details: { elapsedMs: Date.now() - startedAt, timeoutMs, receivedChars: text.length, eventCount } })
+      throw timeoutError(timeoutMs)
+    }
     trace?.({ level: 'error', phase: 'http.exception', message: error instanceof Error ? error.message : String(error), details: { elapsedMs: Date.now() - startedAt, errorName: error instanceof Error ? error.name : 'UnknownError' } })
     throw error
   } finally { clearTimeout(timer); externalSignal?.removeEventListener('abort', onAbort) }
@@ -263,17 +292,22 @@ export class ArkProvider implements TextProvider, ImageProvider, VideoProvider {
     const config = this.settings()
     let content: string | undefined
     if (config.arkTextApi === 'responses') {
+      // Seed 2.x models default to reasoning.effort=high, which pushes a full
+      // script generation past the HTTP timeout. Structured JSON output does
+      // not need heavy reasoning: low for generation, minimal for repair.
+      const reasoning = supportsReasoningEffort(config.arkTextModel) ? { effort: purpose === 'repair' ? 'minimal' : 'low' } : undefined
       const requestBody = {
         model: config.arkTextModel,
         stream: config.arkTextStream,
         instructions,
+        ...(reasoning ? { reasoning } : {}),
         input: [{ role: 'user', content: [{ type: 'input_text', text: prompt }] }],
       }
-      this.trace?.({ level: 'info', phase: 'text.request.body', message: purpose === 'repair' ? '正在提交结构修复请求' : '正在提交文本生成请求', details: { purpose, model: config.arkTextModel, instructions, prompt, request: requestBody } })
+      this.trace?.({ level: 'info', phase: 'text.request.body', message: purpose === 'repair' ? '正在提交结构修复请求' : '正在提交文本生成请求', details: { purpose, model: config.arkTextModel, reasoningEffort: reasoning?.effort, instructions, prompt, request: requestBody } })
       if (config.arkTextStream) {
-        content = (await requestResponsesStream(`${ARK_BASE_URL}/responses`, { method: 'POST', headers: this.headers(), body: JSON.stringify(requestBody) }, 180_000, this.trace, signal)).text
+        content = (await requestResponsesStream(`${ARK_BASE_URL}/responses`, { method: 'POST', headers: this.headers(), body: JSON.stringify(requestBody) }, TEXT_RESPONSES_TIMEOUT_MS, this.trace, signal)).text
       } else {
-        const payload = await requestJson<ArkResponsesPayload>(`${ARK_BASE_URL}/responses`, { method: 'POST', headers: this.headers(), body: JSON.stringify(requestBody) }, 180_000, this.trace, signal)
+        const payload = await requestJson<ArkResponsesPayload>(`${ARK_BASE_URL}/responses`, { method: 'POST', headers: this.headers(), body: JSON.stringify(requestBody) }, TEXT_RESPONSES_TIMEOUT_MS, this.trace, signal)
         if (payload.error?.message) throw new Error(payload.error.message)
         content = extractResponsesText(payload)
         this.trace?.({ level: 'info', phase: 'responses.complete', message: 'Responses JSON 接收完成', details: { purpose, responseId: payload.id, status: payload.status, outputChars: content.length, usage: payload.usage } })
@@ -289,7 +323,7 @@ export class ArkProvider implements TextProvider, ImageProvider, VideoProvider {
       this.trace?.({ level: 'info', phase: 'text.request.body', message: purpose === 'repair' ? '正在提交结构修复请求' : '正在提交文本生成请求', details: { purpose, model: config.arkTextModel, instructions, prompt, request: requestBody } })
       const payload = await requestJson<{ choices?: Array<{ message?: { content?: string } }> }>(`${ARK_BASE_URL}/chat/completions`, {
         method: 'POST', headers: this.headers(), body: JSON.stringify(requestBody),
-      }, 120_000, this.trace, signal)
+      }, TEXT_CHAT_TIMEOUT_MS, this.trace, signal)
       content = payload.choices?.[0]?.message?.content
     }
     if (!content) throw new Error('文本模型没有返回内容')
@@ -360,10 +394,10 @@ export class ArkProvider implements TextProvider, ImageProvider, VideoProvider {
     this.trace?.({ level: 'info', phase: 'video.cancelled', message: 'Seedance 任务已取消或记录已删除', details: { externalId } })
   }
 
-  async generateVideo(input: { prompt: string; imagePath: string; lastFramePath?: string; durationSeconds?: number; returnLastFrame?: boolean }, report?: ProgressReporter, signal?: AbortSignal): Promise<{ url: string; externalId: string; lastFrameUrl?: string }> {
+  async generateVideo(input: { prompt: string; imagePath: string; lastFramePath?: string; durationSeconds?: number; returnLastFrame?: boolean; resolution?: string }, report?: ProgressReporter, signal?: AbortSignal): Promise<{ url: string; externalId: string; lastFrameUrl?: string }> {
     const config = this.settings()
     const [first, last] = await Promise.all([fileDataUrl(input.imagePath), input.lastFramePath ? fileDataUrl(input.lastFramePath) : undefined])
-    const request = buildSeedanceRequest({ model: config.seedanceModel, prompt: input.prompt, firstFrameUrl: first, lastFrameUrl: last, durationSeconds: input.durationSeconds, returnLastFrame: input.returnLastFrame })
+    const request = buildSeedanceRequest({ model: config.seedanceModel, prompt: input.prompt, firstFrameUrl: first, lastFrameUrl: last, durationSeconds: input.durationSeconds, returnLastFrame: input.returnLastFrame, resolution: input.resolution })
     this.trace?.({
       level: 'info', phase: 'video.config', message: 'Seedance 官方能力配置已加载',
       details: {

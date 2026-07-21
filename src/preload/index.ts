@@ -18,6 +18,7 @@ const api: LumaWorksApi = {
   openProjectDirectory: (projectId) => ipcRenderer.invoke(IPC.openProjectDirectory, projectId),
   updateCharacterVoice: (input) => ipcRenderer.invoke(IPC.updateCharacterVoice, input),
   previewCharacterVoice: (characterId, locale) => ipcRenderer.invoke(IPC.previewCharacterVoice, characterId, locale),
+  reassignCharacterVoices: (projectId) => ipcRenderer.invoke(IPC.reassignCharacterVoices, projectId),
   getJobDetails: (jobId) => ipcRenderer.invoke(IPC.jobDetails, jobId),
   listSystemEvents: (filters) => ipcRenderer.invoke(IPC.systemEvents, filters),
   exportJobDiagnostics: (jobId) => ipcRenderer.invoke(IPC.exportJobDiagnostics, jobId),

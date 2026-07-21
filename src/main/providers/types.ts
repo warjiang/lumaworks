@@ -19,11 +19,14 @@ export interface ImageProvider {
 }
 
 export interface VideoProvider {
-  generateVideo(input: { prompt: string; imagePath: string; lastFramePath?: string; durationSeconds?: number; returnLastFrame?: boolean }, report?: ProgressReporter, signal?: AbortSignal): Promise<{ url: string; externalId: string; lastFrameUrl?: string }>
+  generateVideo(input: { prompt: string; imagePath: string; lastFramePath?: string; durationSeconds?: number; returnLastFrame?: boolean; resolution?: string }, report?: ProgressReporter, signal?: AbortSignal): Promise<{ url: string; externalId: string; lastFrameUrl?: string }>
 }
 
+export interface SpeechWordTiming { word: string; startMs: number; endMs: number }
+export interface SpeechSentenceTiming { text: string; words: SpeechWordTiming[] }
+
 export interface SpeechProvider {
-  synthesize(input: { text: string; voiceId?: string; locale: 'zh-CN' | 'en-US'; outputPath: string; contextTexts?: string[]; signal?: AbortSignal }): Promise<{ path: string; requestId: string; logId?: string; bytes: number; usageTextWords?: number }>
+  synthesize(input: { text: string; voiceId?: string; locale: 'zh-CN' | 'en-US'; outputPath: string; contextTexts?: string[]; enableSubtitle?: boolean; signal?: AbortSignal }): Promise<{ path: string; requestId: string; logId?: string; bytes: number; usageTextWords?: number; subtitles?: SpeechSentenceTiming[] }>
 }
 
 export interface ProviderSettings {

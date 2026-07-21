@@ -44,6 +44,7 @@ export const shots = sqliteTable('shots', {
   id: text('id').primaryKey(), episodeId: text('episode_id').notNull(), position: integer('position').notNull(),
   title: text('title').notNull(), description: text('description').notNull(), imagePrompt: text('image_prompt').notNull(),
   videoPrompt: text('video_prompt').notNull(), durationSeconds: integer('duration_seconds').notNull(), status: text('status').notNull(),
+  charactersJson: text('characters_json'), directionJson: text('direction_json'),
   imagePath: text('image_path'), videoPath: text('video_path'), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
 }, (table) => [uniqueIndex('shots_episode_position_idx').on(table.episodeId, table.position)])
 
@@ -59,6 +60,7 @@ export const voiceLines = sqliteTable('voice_lines', {
   position: integer('position').notNull(), speaker: text('speaker').notNull(), text: text('text').notNull(),
   spokenText: text('spoken_text'), shotPosition: integer('shot_position'), originalStartMs: integer('original_start_ms'), originalEndMs: integer('original_end_ms'),
   startMs: integer('start_ms').notNull(), endMs: integer('end_ms').notNull(), voiceId: text('line_voice_id'), audioPath: text('audio_path'), audioDurationMs: integer('audio_duration_ms'), planVersion: text('plan_version'),
+  chunksJson: text('chunks_json'),
   createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
 })
 

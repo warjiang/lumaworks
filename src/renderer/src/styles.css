@@ -114,6 +114,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .action-block p { margin: 4px 0 0; color: var(--faint); font-size: 10px; line-height: 1.45; }
 .action-block button { border: 1px solid var(--line); background: transparent; color: var(--muted); }
 .action-block button:hover { border-color: var(--accent); color: var(--accent); }
+.action-block .action-buttons { display: flex; gap: 6px; align-items: center; }
 .action-block.locked { opacity: 0.48; }
 
 .shots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }

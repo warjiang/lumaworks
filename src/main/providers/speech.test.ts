@@ -62,6 +62,37 @@ describe('VolcanoSpeechProvider TTS 2.0', () => {
     expect(phases).toContain('speech.complete')
   })
 
+  it('requests subtitles on TTS 2.0 and parses word-level sentence timings', async () => {
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify({ code: 0, message: '', data: Buffer.from('audio').toString('base64') }) + '\n'))
+        controller.enqueue(encoder.encode(JSON.stringify({
+          code: 0, message: '', data: null,
+          sentence: { text: '你好。', words: [{ word: '你', startTime: 0.1, endTime: 0.4, confidence: 0.9 }, { word: '好。', startTime: 0.4, endTime: 0.8, confidence: 0.9 }] },
+        }) + '\n'))
+        controller.enqueue(encoder.encode(JSON.stringify({ code: 20_000_000, message: 'ok' }) + '\n'))
+        controller.close()
+      },
+    })
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(stream, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const provider = new VolcanoSpeechProvider(() => settings)
+    const result = await provider.synthesize({ text: '你好。', locale: 'zh-CN', outputPath })
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { req_params: { audio_params: Record<string, unknown> } }
+    expect(body.req_params.audio_params).toMatchObject({ enable_subtitle: true })
+    expect(result.subtitles).toEqual([{ text: '你好。', words: [{ word: '你', startMs: 100, endMs: 400 }, { word: '好。', startMs: 400, endMs: 800 }] }])
+  })
+
+  it('does not request subtitles for resources without subtitle support', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(successfulStream(), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const provider = new VolcanoSpeechProvider(() => ({ ...settings, speechResourceId: 'seed-tts-1.0' }))
+    await provider.synthesize({ text: '旧资源', locale: 'zh-CN', outputPath })
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { req_params: { audio_params: Record<string, unknown> } }
+    expect(body.req_params.audio_params).not.toHaveProperty('enable_subtitle')
+  })
+
   it('supports the documented legacy App ID and Access Token headers', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(successfulStream(), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowClockwise, ArrowRight, ArrowsOutSimple, CheckCircle, FilmReel, FolderOpen, GearSix, ImageSquare, MagicWand,
   Pause, Play, Plus, RocketLaunch, SlidersHorizontal, SpeakerHigh, SpinnerGap, Stack, Subtitles,
-  UploadSimple, VideoCamera, WarningCircle, X,
+  UploadSimple, Users, VideoCamera, WarningCircle, X,
 } from '@phosphor-icons/react'
-import type { CharacterVoice, ContentLocale, DashboardSnapshot, DiagnosticEvent, EnqueueJobInput, Job, JobDetails, ModelTestKind, ModelTestResult, Platform, ProjectStage, SaveSettingsInput, VoicePresetId } from '@shared/domain'
+import type { CharacterVoice, ContentLocale, DashboardSnapshot, DiagnosticEvent, EnqueueJobInput, Job, JobDetails, ModelTestKind, ModelTestResult, Platform, ProjectStage, SaveSettingsInput, Shot, VoicePresetId } from '@shared/domain'
 import { VOICE_PRESETS, voicePreset } from '@shared/voices'
 import { MediaViewer, type MediaPreview } from './MediaViewer'
 
@@ -21,7 +21,19 @@ const initialSnapshot: DashboardSnapshot = { projects: [], activeProject: null, 
 function formatTime(value: string): string { return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', month: 'numeric', day: 'numeric' }).format(new Date(value)) }
 function formatDuration(milliseconds: number): string { const seconds = Math.max(0, Math.floor(milliseconds / 1000)); return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒` }
 function mediaUrl(path: string, version?: string): string { return `luma-media://local${encodeURI(path)}${version ? `?v=${encodeURIComponent(version)}` : ''}` }
-function jobLabel(job: Job): string { return ({ 'story-bible': '启动故事圣经', 'story-foundation': '故事基底', 'story-characters': '角色设定', 'story-locations': '场景设定', 'story-episodes': '分集大纲', 'story-bible-assemble': '合并故事圣经', 'episode-script': '分镜剧本', 'shot-image': '关键帧', 'shot-video': '镜头视频', 'dialogue-timing': '对白规划', 'voice-line': '角色配音', 'translate-episode': '英文改写', 'render-episode': '合成成片', publish: '平台投稿', 'character-image': '角色定妆', 'location-image': '场景设定图' } as Record<string, string>)[job.type] ?? job.type }
+function jobLabel(job: Job): string { return ({ 'story-bible': '启动故事圣经', 'story-foundation': '故事基底', 'story-characters': '角色设定', 'story-locations': '场景设定', 'story-episodes': '分集大纲', 'story-bible-assemble': '合并故事圣经', 'episode-script': '分镜剧本', 'shot-image': '关键帧', 'shot-grid-image': '宫格关键帧', 'shot-video': '镜头视频', 'dialogue-timing': '对白规划', 'voice-line': '角色配音', 'translate-episode': '英文改写', 'render-episode': '合成成片', publish: '平台投稿', 'character-image': '角色定妆', 'location-image': '场景设定图' } as Record<string, string>)[job.type] ?? job.type }
+
+function groupShotsForGrid(shots: Shot[]): { groups: string[][]; singles: string[] } {
+  const groups: string[][] = []; const singles: string[] = []; let buffer: Shot[] = []
+  const drain = () => { while (buffer.length >= 4) groups.push(buffer.splice(0, 4).map((shot) => shot.id)); singles.push(...buffer.map((shot) => shot.id)); buffer = [] }
+  for (const shot of shots) {
+    const location = shot.direction?.location ?? ''
+    if (buffer.length && (buffer[0].direction?.location ?? '') !== location) drain()
+    buffer.push(shot)
+  }
+  drain()
+  return { groups, singles }
+}
 
 export function App() {
   const [data, setData] = useState<DashboardSnapshot>(initialSnapshot)
@@ -106,12 +118,23 @@ function Studio({ data, enqueue, enqueueMany, onNew, refresh }: { data: Dashboar
   const stageIndex = STAGE_ORDER.get(project.stage) ?? 0
   const activeJobs = data.jobs.filter((job) => ['queued', 'running', 'waiting'].includes(job.status)).length
   const videoJobsActive = data.jobs.some((job) => job.projectId === project.id && job.type === 'shot-video' && ['queued', 'running', 'waiting'].includes(job.status))
+  const referencedCharacters = project.characters.filter((character) => character.referenceAssetId).length
   const batch = async (type: 'shot-image' | 'shot-video') => {
     if (type === 'shot-image') return enqueueMany(project.shots.map((shot) => ({ type, entityId: shot.id, payload: {}, force: true })))
     const batchScheduledAt = new Date().toISOString()
     return enqueueMany(project.shots.map((shot) => shot.imagePath
       ? { type: 'shot-video', entityId: shot.id, payload: {}, scheduledAt: batchScheduledAt, force: false }
       : { type: 'shot-image', entityId: shot.id, payload: { continueToVideo: true, batchScheduledAt }, scheduledAt: batchScheduledAt, force: false }))
+  }
+  const batchGrid = async () => {
+    if (!episode) return
+    const pending = project.shots.filter((shot) => !shot.imagePath)
+    if (!pending.length) return
+    const { groups, singles } = groupShotsForGrid(pending)
+    return enqueueMany([
+      ...groups.map((shotIds) => ({ type: 'shot-grid-image' as const, entityId: episode.id, payload: { shotIds }, force: true })),
+      ...singles.map((shotId) => ({ type: 'shot-image' as const, entityId: shotId, payload: {}, force: true })),
+    ])
   }
   return <div className="workspace">
     <header className="workspace-header">
@@ -130,7 +153,8 @@ function Studio({ data, enqueue, enqueueMany, onNew, refresh }: { data: Dashboar
       <div className="action-grid">
         <ActionBlock icon={<MagicWand />} title="故事圣经" description="建立角色、世界观、视觉方向与分集悬念。" status={stageIndex > 0 ? 'ready' : 'next'} action="生成故事" onClick={() => enqueue({ type: 'story-bible', entityId: project.id, payload: {}, force: true })} />
         <ActionBlock icon={<Stack />} title="分镜剧本" description="生成 8-16 个镜头、动作提示词和对白时间轴。" status={episode ? 'ready' : stageIndex > 0 ? 'next' : 'locked'} action="生成剧本" onClick={() => enqueue({ type: 'episode-script', entityId: project.id, payload: { episodeNumber: 1 }, force: true })} />
-        <ActionBlock icon={<ImageSquare />} title="关键帧" description={`${project.shots.filter((shot) => shot.imagePath).length}/${project.shots.length || 0} 个镜头已生成`} status={project.shots.some((shot) => shot.imagePath) ? 'working' : episode ? 'next' : 'locked'} action="批量生图" onClick={() => batch('shot-image')} />
+        <ActionBlock icon={<Users />} title="角色定妆" description={`${referencedCharacters}/${project.characters.length || 0} 个角色已有定妆参考照，关键帧会据此保持人物一致`} status={project.characters.length ? referencedCharacters >= project.characters.length ? 'working' : 'next' : 'locked'} action="生成定妆照" onClick={() => enqueueMany(project.characters.map((character) => ({ type: 'character-image' as const, entityId: character.id, payload: { projectId: project.id }, force: referencedCharacters >= project.characters.length })))} />
+        <ActionBlock icon={<ImageSquare />} title="关键帧" description={`${project.shots.filter((shot) => shot.imagePath).length}/${project.shots.length || 0} 个镜头已生成；宫格模式同场景 4 镜一图，风格更统一`} status={project.shots.some((shot) => shot.imagePath) ? 'working' : episode ? 'next' : 'locked'} action="批量生图" onClick={() => batch('shot-image')} extra={{ label: '宫格生图', onClick: () => void batchGrid() }} />
         <ActionBlock icon={<VideoCamera />} title="镜头视频" description={`${project.shots.filter((shot) => shot.videoPath).length}/${project.shots.length || 0} 个镜头已完成；缺失关键帧会自动接续生成`} status={project.shots.some((shot) => shot.videoPath) ? 'working' : episode ? 'next' : 'locked'} action="流水线生视频" onClick={() => batch('shot-video')} />
       </div>
     </section>
@@ -142,7 +166,17 @@ function Studio({ data, enqueue, enqueueMany, onNew, refresh }: { data: Dashboar
 }
 
 function CharacterVoices({ characters, onSaved }: { characters: CharacterVoice[]; onSaved(): void }) {
-  return <section className="voice-section"><div className="board-heading"><div><h2>角色音色</h2><p>系统按角色预分配中英文音色，可逐角色修改并试听；人工调整会在重新生成故事设定后保留。</p></div><span>{characters.length} 角色</span></div><div className="voice-table"><div className="voice-table-head"><span>角色</span><span>策略</span><span>中文 Voice ID</span><span>英文 Voice ID</span><span>操作</span></div>{characters.map((character) => <CharacterVoiceRow key={character.id} character={character} onSaved={onSaved} />)}</div></section>
+  const [reassigning, setReassigning] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const projectId = characters[0]?.projectId
+  const reassign = async () => {
+    if (!projectId) return
+    setReassigning(true); setMessage(null)
+    try { const result = await window.lumaworks.reassignCharacterVoices(projectId); setMessage(`已按故事设定重新分配 ${result.changed} 个角色音色，配音需重新生成`); onSaved() }
+    catch (error) { setMessage(error instanceof Error ? error.message : String(error)) }
+    finally { setReassigning(false) }
+  }
+  return <section className="voice-section"><div className="board-heading"><div><h2>角色音色</h2><p>系统按角色设定预分配中英文音色，可逐角色修改并试听；人工保存会锁定，「重新分配」按故事圣经重推并解除锁定。</p>{message && <p className="field-help">{message}</p>}</div><div className="voice-actions"><span>{characters.length} 角色</span><button type="button" disabled={reassigning || !projectId} onClick={() => void reassign()} title="按故事圣经中的角色设定重新推断全部角色音色（覆盖人工锁定）">{reassigning ? <SpinnerGap className="spin" /> : <ArrowClockwise />}重新分配音色</button></div></div><div className="voice-table"><div className="voice-table-head"><span>角色</span><span>策略</span><span>中文 Voice ID</span><span>英文 Voice ID</span><span>操作</span></div>{characters.map((character) => <CharacterVoiceRow key={character.id} character={character} onSaved={onSaved} />)}</div></section>
 }
 
 function CharacterVoiceRow({ character, onSaved }: { character: CharacterVoice; onSaved(): void }) {
@@ -154,23 +188,27 @@ function CharacterVoiceRow({ character, onSaved }: { character: CharacterVoice; 
   const choosePreset = (value: VoicePresetId) => { const selected = voicePreset(value); setPreset(value); setZhVoiceId(selected.zhVoiceId); setEnVoiceId(selected.enVoiceId); setMessage(null) }
   const save = async () => { setBusy('save'); setMessage(null); try { await window.lumaworks.updateCharacterVoice({ id: character.id, voicePreset: preset, zhVoiceId, enVoiceId, voiceLocked: true }); setMessage('已保存'); onSaved() } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) } finally { setBusy(null) } }
   const preview = async (locale: ContentLocale) => { setBusy(locale); setMessage(null); try { await window.lumaworks.updateCharacterVoice({ id: character.id, voicePreset: preset, zhVoiceId, enVoiceId, voiceLocked: true }); const result = await window.lumaworks.previewCharacterVoice(character.id, locale); const audio = new Audio(mediaUrl(result.path, String(Date.now()))); await audio.play(); setMessage(result.warning ?? (locale === 'zh-CN' ? '正在播放中文试听' : '正在播放英文试听')); onSaved() } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) } finally { setBusy(null) } }
+  const reference = async () => { setBusy('save'); setMessage(null); try { await window.lumaworks.enqueueJob({ type: 'character-image', entityId: character.id, payload: { projectId: character.projectId }, force: true }); setMessage(character.referenceAssetId ? '正在重新生成定妆照' : '正在生成定妆照'); onSaved() } catch (error) { setMessage(error instanceof Error ? error.message : String(error)) } finally { setBusy(null) } }
   const persistedWarning = [character.zhVoiceWarning, character.enVoiceWarning].filter(Boolean).join('；')
   const status = message ?? persistedWarning
-  return <div className="voice-row"><div className="voice-character"><strong>{character.name}</strong><span>{character.role}</span></div><label><span className="sr-only">音色策略</span><select value={preset} onChange={(event) => choosePreset(event.target.value as VoicePresetId)}>{VOICE_PRESETS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label><span className="sr-only">中文 Voice ID</span><input value={zhVoiceId} onChange={(event) => setZhVoiceId(event.target.value)} /></label><label><span className="sr-only">英文 Voice ID</span><input value={enVoiceId} onChange={(event) => setEnVoiceId(event.target.value)} /></label><div className="voice-actions"><button type="button" disabled={busy !== null} onClick={() => void preview('zh-CN')} title="试听中文"><SpeakerHigh />中</button><button type="button" disabled={busy !== null} onClick={() => void preview('en-US')} title="试听英文"><SpeakerHigh />英</button><button type="button" disabled={busy !== null || !zhVoiceId.trim() || !enVoiceId.trim()} onClick={() => void save()}>{busy === 'save' ? <SpinnerGap className="spin" /> : null}保存</button>{status && <small className={persistedWarning && !message ? 'warning' : ''} title={status}>{status}</small>}</div></div>
+  return <div className="voice-row"><div className="voice-character"><strong>{character.name}</strong><span>{character.role}</span></div><label><span className="sr-only">音色策略</span><select value={preset} onChange={(event) => choosePreset(event.target.value as VoicePresetId)}>{VOICE_PRESETS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label><span className="sr-only">中文 Voice ID</span><input value={zhVoiceId} onChange={(event) => setZhVoiceId(event.target.value)} /></label><label><span className="sr-only">英文 Voice ID</span><input value={enVoiceId} onChange={(event) => setEnVoiceId(event.target.value)} /></label><div className="voice-actions"><button type="button" disabled={busy !== null} onClick={() => void preview('zh-CN')} title="试听中文"><SpeakerHigh />中</button><button type="button" disabled={busy !== null} onClick={() => void preview('en-US')} title="试听英文"><SpeakerHigh />英</button><button type="button" disabled={busy !== null} onClick={() => void reference()} title={character.referenceAssetId ? '已有定妆照，点击重新生成' : '生成角色定妆参考照，供关键帧保持人物一致'}><ImageSquare />{character.referenceAssetId ? '重拍' : '定妆'}</button><button type="button" disabled={busy !== null || !zhVoiceId.trim() || !enVoiceId.trim()} onClick={() => void save()}>{busy === 'save' ? <SpinnerGap className="spin" /> : null}保存</button>{status && <small className={persistedWarning && !message ? 'warning' : ''} title={status}>{status}</small>}</div></div>
 }
 
-function ActionBlock({ icon, title, description, status, action, onClick }: { icon: React.ReactNode; title: string; description: string; status: 'ready' | 'next' | 'working' | 'locked'; action: string; onClick(): void }) {
-  return <article className={`action-block ${status}`}><div className="action-icon">{icon}</div><div><h3>{title}</h3><p>{description}</p></div><button disabled={status === 'locked'} onClick={onClick}>{status === 'ready' ? <ArrowClockwise /> : <ArrowRight />}{status === 'ready' ? `重新${action}` : action}</button></article>
+function ActionBlock({ icon, title, description, status, action, onClick, extra }: { icon: React.ReactNode; title: string; description: string; status: 'ready' | 'next' | 'working' | 'locked'; action: string; onClick(): void; extra?: { label: string; onClick(): void } }) {
+  return <article className={`action-block ${status}`}><div className="action-icon">{icon}</div><div><h3>{title}</h3><p>{description}</p></div><div className="action-buttons">{extra && <button disabled={status === 'locked'} onClick={extra.onClick}><Stack />{extra.label}</button>}<button disabled={status === 'locked'} onClick={onClick}>{status === 'ready' ? <ArrowClockwise /> : <ArrowRight />}{status === 'ready' ? `重新${action}` : action}</button></div></article>
 }
 
 function PublishCenter({ data, refresh, setError }: { data: DashboardSnapshot; refresh(): void; setError(value: string | null): void }) {
   const [formOpen, setFormOpen] = useState(false)
+  const [preview, setPreview] = useState<MediaPreview | null>(null)
   const completed = data.renders.filter((render) => render.status === 'completed')
   const connect = async (platform: Platform) => { try { const result = await window.lumaworks.connectPlatform(platform); if (!result.connected) setError(result.message); await refresh() } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)) } }
   return <div className="page-view"><header className="page-header"><div><p className="muted">渠道交付</p><h1>投稿中心</h1><p>审核每个平台的成片、封面与文案，再进入发布队列。</p></div><button className="primary-button" disabled={!completed.length} onClick={() => setFormOpen(true)}><UploadSimple />新建投稿</button></header>
     <div className="platform-row"><PlatformCard name="小红书" detail="浏览器辅助投稿" connected label="打开登录" onClick={() => connect('xiaohongshu')} /><PlatformCard name="TikTok" detail="Content Posting API" connected={data.configured.tiktok} label="连接账号" onClick={() => connect('tiktok')} /><PlatformCard name="YouTube" detail="Data API 断点上传" connected={data.configured.youtube} label="连接账号" onClick={() => connect('youtube')} /></div>
+    {!!completed.length && <section className="publish-list"><div className="board-heading"><div><h2>成片预览</h2><p>最终交付文件为 final.mp4（含配音与烧录字幕）；目录中的 master.mp4 是无声中间产物，请勿直接播放。</p></div></div>{completed.map((render) => <article className="publish-item" key={render.id}><div className="platform-symbol"><Play weight="fill" /></div><div className="publish-copy"><strong>{render.locale === 'zh-CN' ? '中文版成片' : '英文版成片'}</strong><span>{formatTime(render.createdAt)}</span></div><button className="secondary-button" disabled={!render.videoPath} onClick={() => setPreview({ kind: 'video', path: render.videoPath!, src: mediaUrl(render.videoPath!, render.createdAt), title: render.locale === 'zh-CN' ? '中文版成片' : '英文版成片' })}><Play weight="fill" />播放</button></article>)}</section>}
     <section className="publish-list"><div className="board-heading"><div><h2>待审核与发布</h2><p>只有确认后的草稿才会真正提交。</p></div></div>{data.publishDrafts.length ? data.publishDrafts.map((draft) => <article className="publish-item" key={draft.id}><div className={`platform-symbol ${draft.platform}`}>{draft.platform === 'xiaohongshu' ? '小' : draft.platform === 'tiktok' ? 'T' : 'Y'}</div><div className="publish-copy"><strong>{draft.title}</strong><span>{draft.platform} · {draft.scheduledAt ? formatTime(draft.scheduledAt) : '立即发布'} · {draft.visibility}</span></div><div className="publish-tags">{draft.tags.slice(0, 3).map((tag) => <span key={tag}>#{tag}</span>)}</div><button className={draft.approved ? 'secondary-button' : 'primary-button'} disabled={draft.approved} onClick={async () => { await window.lumaworks.approvePublishDraft(draft.id); refresh() }}>{draft.approved ? '已入队' : '审核并发布'}</button></article>) : <div className="empty-inline"><UploadSimple /><p>还没有投稿草稿。先完成一版成片。</p></div>}</section>
     {formOpen && <PublishDialog renders={completed} onClose={() => setFormOpen(false)} onCreated={async () => { setFormOpen(false); refresh() }} />}
+    {preview && <MediaViewer preview={preview} onClose={() => setPreview(null)} />}
   </div>
 }
 

@@ -23,18 +23,37 @@ export function voicePreset(id: VoicePresetId): VoicePreset {
   return VOICE_PRESETS.find((item) => item.id === id) ?? VOICE_PRESETS[0]
 }
 
+const MALE_VOICE_REGISTER = /男(?:低|中|高)?音|男声/
+const FEMALE_VOICE_REGISTER = /女(?:低|中|高)?音|女声/
+const MALE_ROLE_MARKERS = /男主角|男配角|堂[兄弟]|表[兄弟]|师兄|师弟|兄弟|伯父|叔父|父亲|生父|养父|祖父|爷爷|公子|少爷|新郎|丈夫|男友|管家/
+const FEMALE_ROLE_MARKERS = /女主角|女配角|堂[姐妹]|表[姐妹]|师姐|师妹|姐妹|伯母|叔母|母亲|生母|养母|祖母|奶奶|夫人|小姐|新娘|妻子|女友/
+
+function inferFemale(input: { name: string; role: string; description: string; voiceDescription: string }): boolean {
+  // The voice register ("男中音"/"女高音") is the most reliable gender signal.
+  if (FEMALE_VOICE_REGISTER.test(input.voiceDescription)) return true
+  if (MALE_VOICE_REGISTER.test(input.voiceDescription)) return false
+  // Kinship/lead markers in the role come next. Never scan for a bare 女
+  // character — words like 女儿 describe relatives, not the character.
+  if (FEMALE_ROLE_MARKERS.test(input.role)) return true
+  if (MALE_ROLE_MARKERS.test(input.role)) return false
+  return /女性|姑娘|她/.test(input.description)
+}
+
 export function inferVoicePreset(input: { name: string; role: string; description: string; voiceDescription: string }, used: Set<VoicePresetId> = new Set()): VoicePresetId {
   const value = `${input.name} ${input.role} ${input.description} ${input.voiceDescription}`
   if (/旁白|解说|narrator/i.test(value)) return 'narrator'
-  if (/反派|阴冷|冷峻|狠厉|压迫|villain/i.test(value)) return 'cold-villain'
-  const elder = /([6-9]\d)岁|老年|老人|长辈|爷爷|奶奶|祖父|祖母|苍老|年迈/i.test(value)
-  const mature = /([4-5]\d)岁|中年|成熟|母亲|父亲|叔|姨|掌权|沉稳/i.test(value)
-  const female = /女|母亲|妻|姐姐|妹妹|夫人|female/i.test(value)
-  const candidates: VoicePresetId[] = elder
-    ? [female ? 'elder-female' : 'elder-male']
-    : mature ? [female ? 'mature-female' : 'mature-male']
-      : [female ? 'young-female' : 'young-male']
-  const chosen = candidates[0]
+  const female = inferFemale(input)
+  const age = Number(value.match(/(\d{1,2})岁/)?.[1] ?? 0)
+  const elder = age >= 60 || /老年|老人|长辈|爷爷|奶奶|祖父|祖母|苍老|年迈/.test(value)
+  const mature = !elder && (age >= 40 || /中年|掌权|沉稳/.test(value))
+  const villain = /反派|阴冷|冷峻|狠厉|压迫|villain/i.test(value)
+  // Gender outranks archetype: the cold-villain preset ships a male voice, so a
+  // female villain must fall back to a female register of her age tier.
+  const chosen: VoicePresetId = villain && !female && !elder
+    ? 'cold-villain'
+    : elder ? (female ? 'elder-female' : 'elder-male')
+      : mature ? (female ? 'mature-female' : 'mature-male')
+        : (female ? 'young-female' : 'young-male')
   if (!used.has(chosen)) return chosen
   if (chosen === 'young-male') return 'mature-male'
   if (chosen === 'young-female') return 'mature-female'

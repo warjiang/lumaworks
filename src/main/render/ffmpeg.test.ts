@@ -28,9 +28,47 @@ describe('buildAss', () => {
     expect(events.length).toBeGreaterThan(1)
     expect(events.every((line) => (line.match(/\\N/g) ?? []).length <= 1)).toBe(true)
   })
+
+  it('burns explicit speech-aligned chunk timings instead of splitting the line window', () => {
+    const ass = buildAss([{
+      text: '别开门。先听我说。', startMs: 1_000, endMs: 5_000,
+      chunks: [
+        { text: '别开门。', startMs: 1_200, endMs: 2_100 },
+        { text: '先听我说。', startMs: 3_400, endMs: 4_800 },
+      ],
+    }], 'zh-CN')
+    const events = ass.split('\n').filter((line) => line.startsWith('Dialogue:'))
+    expect(events).toHaveLength(2)
+    expect(events[0]).toContain('0:00:01.20,0:00:02.10')
+    expect(events[1]).toContain('0:00:03.40,0:00:04.80')
+  })
+
+  it('weights fallback chunk windows by character count instead of splitting evenly', () => {
+    // 30 chars split into 14/14/2 lines → chunks of 28 and 2 chars; an even
+    // split would give 2000/2000, the weighted split gives ~3733/267.
+    const ass = buildAss([{ text: '嗯。接下来的这句话必须足够长才能切成三行从而验证按字分配时间', startMs: 0, endMs: 4_000 }], 'zh-CN')
+    const events = ass.split('\n').filter((line) => line.startsWith('Dialogue:'))
+    expect(events).toHaveLength(2)
+    expect(events[0]).toContain('0:00:00.00,0:00:03.73')
+    expect(events[1]).toContain('0:00:03.73,0:00:04.00')
+  })
 })
 
 describe('FfmpegRenderer', () => {
+  it('slices a 2x2 grid image into four equal 9:16 cells', { timeout: 30_000 }, async () => {
+    const root = await mkdtemp(join(tmpdir(), 'lumaworks-grid-')); const ffmpeg = ffmpegPath || 'ffmpeg'
+    try {
+      const gridPath = join(root, 'grid.png')
+      await run(ffmpeg, ['-y', '-f', 'lavfi', '-i', 'color=c=red:s=320x568:d=0.1:r=1', '-frames:v', '1', gridPath])
+      const cells = await new FfmpegRenderer().sliceGrid(gridPath, 2, 2, join(root, 'cells'))
+      expect(cells).toHaveLength(4)
+      for (const cell of cells) {
+        const { stdout, stderr } = await run(ffmpeg, ['-hide_banner', '-i', cell]).catch((error: { stdout: string; stderr: string }) => ({ stdout: error.stdout ?? '', stderr: error.stderr ?? '' }))
+        expect(`${stdout}${stderr}`).toContain('160x284')
+      }
+    } finally { await rm(root, { recursive: true, force: true }) }
+  })
+
   it('keeps the measured video duration when the voice track is shorter', { timeout: 30_000 }, async () => {
     const root = await mkdtemp(join(tmpdir(), 'lumaworks-render-')); const ffmpeg = ffmpegPath || 'ffmpeg'
     try {

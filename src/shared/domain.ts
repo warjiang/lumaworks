@@ -8,7 +8,7 @@ export type JobStatus = z.infer<typeof jobStatusSchema>
 
 export const jobTypeSchema = z.enum([
   'story-bible', 'story-foundation', 'story-characters', 'story-locations', 'story-episodes', 'story-bible-assemble',
-  'episode-script', 'character-image', 'location-image', 'shot-image',
+  'episode-script', 'character-image', 'location-image', 'shot-image', 'shot-grid-image',
   'shot-video', 'dialogue-timing', 'voice-line', 'translate-episode', 'render-episode', 'publish',
 ])
 export type JobType = z.infer<typeof jobTypeSchema>
@@ -44,6 +44,7 @@ export interface CharacterVoice {
   zhVoiceWarning: string | null
   enVoiceWarning: string | null
   voiceLocked: boolean
+  referenceAssetId: string | null
 }
 
 export interface VoiceLine {
@@ -64,6 +65,7 @@ export interface VoiceLine {
   audioPath: string | null
   audioDurationMs: number | null
   planVersion: string | null
+  chunks: Array<{ text: string; startMs: number; endMs: number }> | null
 }
 
 export interface DialoguePlanSummary {
@@ -109,6 +111,16 @@ export interface Episode {
   updatedAt: string
 }
 
+export interface ShotDirection {
+  sceneType: string
+  shotType: string
+  cameraMove: string
+  location: string
+  sourceText: string
+  carryOver: string
+  actingNotes: string
+}
+
 export interface Shot {
   id: string
   episodeId: string
@@ -119,6 +131,8 @@ export interface Shot {
   videoPrompt: string
   durationSeconds: number
   status: 'draft' | 'image-ready' | 'video-ready' | 'failed'
+  characters: string[]
+  direction: ShotDirection | null
   imagePath: string | null
   videoPath: string | null
   updatedAt: string

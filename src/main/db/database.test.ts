@@ -67,6 +67,58 @@ describe('AppDatabase', () => {
     db.close()
   })
 
+  it('reassigns voices from the story bible even for manually locked characters', async () => {
+    const db = await createDb(); const projectId = db.createProject({ title: '音色重推', synopsis: '这是用于验证音色重新分配会覆盖人工锁定的完整故事简介。', visualStyle: 'cinematic' })
+    const bible = {
+      world: '城市', visualDirection: '写实', logline: '冲突',
+      characters: [
+        { name: '贺兰秋', role: '暗线推手', appearance: '35岁女性，黑色连衣裙', personality: '克制', voice: '女中音，语速平稳' },
+        { name: '沈书樾', role: '裴衍州堂弟', appearance: '30岁男性，圆框眼镜', personality: '圆滑', voice: '男高音偏亮' },
+      ],
+      locations: [], episodes: [{ number: 1, title: '第一集', summary: '剧情', hook: '钩子', cliffhanger: '悬念' }],
+    }
+    db.saveStoryBibleBundle(projectId, bible)
+    for (const character of db.listCharacters(projectId)) db.updateCharacterVoice({ id: character.id, voicePreset: 'mature-female', zhVoiceId: 'wrong-voice', enVoiceId: 'wrong-voice-en', voiceLocked: true })
+    expect(db.reassignCharacterVoices(projectId)).toBe(2)
+    const voices = db.listCharacters(projectId)
+    expect(voices.find((character) => character.name === '贺兰秋')).toMatchObject({ voicePreset: 'young-female', zhVoiceId: 'zh_female_vv_uranus_bigtts', voiceLocked: false })
+    expect(voices.find((character) => character.name === '沈书樾')).toMatchObject({ voicePreset: 'young-male', zhVoiceId: 'zh_male_yangguangqingnian_moon_bigtts', voiceLocked: false })
+    db.close()
+  })
+
+  it('persists per-shot characters and resolves shot reference images from cast, dialogue speakers, or text mentions', async () => {
+    const db = await createDb(); const projectId = db.createProject({ title: '定妆参考', synopsis: '这是用于验证角色定妆参考图解析的完整故事简介。', visualStyle: 'cinematic' })
+    const bible = {
+      world: '城市', visualDirection: '写实', logline: '冲突',
+      characters: [
+        { name: '林澈', role: '青年女主角', appearance: '27岁短发女性', personality: '冷静', voice: '克制的青年女声' },
+        { name: '周远', role: '反派父亲', appearance: '56岁中年男性', personality: '冷酷', voice: '低沉冷峻' },
+      ],
+      locations: [{ name: '走廊', description: '室内', visualPrompt: '冷色走廊' }],
+      episodes: [{ number: 1, title: '第一集', summary: '剧情', hook: '钩子', cliffhanger: '悬念' }],
+    }
+    db.saveStoryBibleBundle(projectId, bible)
+    const lin = db.listCharacters(projectId).find((character) => character.name === '林澈')!
+    const zhou = db.listCharacters(projectId).find((character) => character.name === '周远')!
+    db.setCharacterReferenceAsset(lin.id, db.addAsset({ projectId, entityType: 'character', entityId: lin.id, kind: 'reference-image', path: '/refs/lin.jpg' }))
+    db.setCharacterReferenceAsset(zhou.id, db.addAsset({ projectId, entityType: 'character', entityId: zhou.id, kind: 'reference-image', path: '/refs/zhou.jpg' }))
+    const episodeId = db.replaceEpisodeScript(projectId, {
+      title: '定妆测试', summary: '定妆测试',
+      shots: Array.from({ length: 8 }, (_, index) => ({ title: `镜头${index + 1}`, description: index === 2 ? '周远走进走廊' : '走廊', imagePrompt: '冷色走廊', videoPrompt: '缓慢推进', durationSeconds: 5, characters: index === 0 ? ['林澈'] : [] })),
+      dialogue: [{ speaker: '周远', text: '别动。', shotPosition: 2, startMs: 0, endMs: 900 }],
+    })
+    const shots = db.listShotsForEpisode(episodeId)
+    expect(shots[0].characters).toEqual(['林澈'])
+    expect(db.getShotReferencePaths(shots[0].id)).toEqual(['/refs/lin.jpg'])
+    expect(db.getShotReferencePaths(shots[1].id)).toEqual(['/refs/zhou.jpg'])
+    expect(db.getShotReferencePaths(shots[2].id)).toEqual(['/refs/zhou.jpg'])
+    expect(db.getShotReferencePaths(shots[3].id)).toEqual([])
+    const referenceAssetIds = db.listCharacters(projectId).map((character) => character.referenceAssetId).sort()
+    db.saveStoryBibleBundle(projectId, bible)
+    expect(db.listCharacters(projectId).map((character) => character.referenceAssetId).sort()).toEqual(referenceAssetIds)
+    db.close()
+  })
+
   it('migrates the legacy jobs table without losing existing jobs', async () => {
     const path = await mkdtemp(join(tmpdir(), 'lumaworks-legacy-')); paths.push(path)
     const databasePath = join(path, 'legacy.sqlite'); const legacy = new Database(databasePath); const stamp = new Date().toISOString()

@@ -136,6 +136,7 @@ export interface SeedanceCapabilities {
   supportsSmartDuration: boolean
   supportsLastFrame: boolean
   supportsGenerateAudio: boolean
+  defaultResolution: '1080p' | '720p'
 }
 
 export type SeedanceContent =
@@ -145,7 +146,7 @@ export type SeedanceContent =
 export interface SeedanceRequestBody {
   model: string
   content: SeedanceContent[]
-  resolution: '720p'
+  resolution: string
   ratio: '9:16'
   duration: number
   generate_audio?: boolean
@@ -155,13 +156,13 @@ export interface SeedanceRequestBody {
 
 export function seedanceCapabilities(model: string): SeedanceCapabilities {
   const id = normalizedModelId(model)
-  if (/seedance-2-0-fast(?:-|$)/.test(id)) return { family: '2.0-fast', minDurationSeconds: 4, maxDurationSeconds: 15, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true }
-  if (/seedance-2-0-mini(?:-|$)/.test(id)) return { family: '2.0-mini', minDurationSeconds: 4, maxDurationSeconds: 15, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true }
-  if (/seedance-2-0(?:-|$)/.test(id)) return { family: '2.0', minDurationSeconds: 4, maxDurationSeconds: 15, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true }
-  if (/seedance-1-5-pro(?:-|$)/.test(id)) return { family: '1.5-pro', minDurationSeconds: 4, maxDurationSeconds: 12, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true }
-  if (/seedance-1-0-pro-fast(?:-|$)/.test(id)) return { family: '1.0-pro-fast', minDurationSeconds: 2, maxDurationSeconds: 12, supportsSmartDuration: false, supportsLastFrame: false, supportsGenerateAudio: false }
-  if (/seedance-1-0-pro(?:-|$)/.test(id)) return { family: '1.0-pro', minDurationSeconds: 2, maxDurationSeconds: 12, supportsSmartDuration: false, supportsLastFrame: true, supportsGenerateAudio: false }
-  return { family: 'unknown', minDurationSeconds: 4, maxDurationSeconds: 12, supportsSmartDuration: false, supportsLastFrame: true, supportsGenerateAudio: false }
+  if (/seedance-2-0-fast(?:-|$)/.test(id)) return { family: '2.0-fast', minDurationSeconds: 4, maxDurationSeconds: 15, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true, defaultResolution: '1080p' }
+  if (/seedance-2-0-mini(?:-|$)/.test(id)) return { family: '2.0-mini', minDurationSeconds: 4, maxDurationSeconds: 15, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true, defaultResolution: '1080p' }
+  if (/seedance-2-0(?:-|$)/.test(id)) return { family: '2.0', minDurationSeconds: 4, maxDurationSeconds: 15, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true, defaultResolution: '1080p' }
+  if (/seedance-1-5-pro(?:-|$)/.test(id)) return { family: '1.5-pro', minDurationSeconds: 4, maxDurationSeconds: 12, supportsSmartDuration: true, supportsLastFrame: true, supportsGenerateAudio: true, defaultResolution: '720p' }
+  if (/seedance-1-0-pro-fast(?:-|$)/.test(id)) return { family: '1.0-pro-fast', minDurationSeconds: 2, maxDurationSeconds: 12, supportsSmartDuration: false, supportsLastFrame: false, supportsGenerateAudio: false, defaultResolution: '720p' }
+  if (/seedance-1-0-pro(?:-|$)/.test(id)) return { family: '1.0-pro', minDurationSeconds: 2, maxDurationSeconds: 12, supportsSmartDuration: false, supportsLastFrame: true, supportsGenerateAudio: false, defaultResolution: '720p' }
+  return { family: 'unknown', minDurationSeconds: 4, maxDurationSeconds: 12, supportsSmartDuration: false, supportsLastFrame: true, supportsGenerateAudio: false, defaultResolution: '720p' }
 }
 
 export function buildSeedanceRequest(input: {
@@ -171,6 +172,7 @@ export function buildSeedanceRequest(input: {
   lastFrameUrl?: string
   durationSeconds?: number
   returnLastFrame?: boolean
+  resolution?: string
 }): { body: SeedanceRequestBody; capabilities: SeedanceCapabilities; requestedDuration: number; effectiveDuration: number; omittedUnsupportedParameters: string[] } {
   const prompt = input.prompt.trim()
   if (!prompt) throw new Error('Seedance 提示词不能为空')
@@ -192,7 +194,7 @@ export function buildSeedanceRequest(input: {
   const body: SeedanceRequestBody = {
     model: input.model,
     content,
-    resolution: '720p',
+    resolution: input.resolution ?? capabilities.defaultResolution,
     ratio: '9:16',
     duration: effectiveDuration,
     watermark: false,

@@ -95,6 +95,10 @@ function registerIpc(db: AppDatabase, jobs: JobRunner, logs: DiagnosticsService,
     if (error) throw new Error(`无法打开项目工作目录: ${error}`)
   })
   ipcMain.handle(IPC.updateCharacterVoice, (_event, raw: unknown) => db.updateCharacterVoice(updateCharacterVoiceSchema.parse(raw)))
+  ipcMain.handle(IPC.reassignCharacterVoices, (_event, projectId: string) => {
+    if (!db.getProject(projectId)) throw new Error('项目不存在')
+    return { changed: db.reassignCharacterVoices(projectId) }
+  })
   ipcMain.handle(IPC.previewCharacterVoice, async (_event, characterId: string, locale: ContentLocale) => {
     const character = db.getCharacterVoiceById(characterId); if (!character) throw new Error('角色不存在')
     const voiceId = locale === 'en-US' ? character.enVoiceId : character.zhVoiceId
@@ -138,34 +142,42 @@ function registerIpc(db: AppDatabase, jobs: JobRunner, logs: DiagnosticsService,
 }
 
 app.whenReady().then(() => {
-  const root = app.getPath('userData'); const mediaRoot = join(root, 'media'); database = new AppDatabase(join(root, 'lumaworks.sqlite'))
-  protocol.handle('luma-media', (request) => {
-    const path = decodeURIComponent(new URL(request.url).pathname)
-    if (!path.startsWith(mediaRoot)) return new Response('Forbidden', { status: 403 })
-    return net.fetch(pathToFileURL(path).toString())
-  })
-  diagnostics = new DiagnosticsService(database, {
-    available: () => safeStorage.isEncryptionAvailable(),
-    encrypt: (value) => safeStorage.encryptString(value).toString('base64'),
-    decrypt: (value) => { try { return safeStorage.decryptString(Buffer.from(value, 'base64')) } catch { return null } },
-  }, join(root, 'diagnostics', 'emergency.jsonl'))
-  const cleanup = diagnostics.cleanup()
-  if (cleanup.deleted) database.compactDiagnostics()
-  diagnostics.log({ phase: 'app.ready', scope: 'app', message: 'LumaWorks 主进程已启动', details: { appVersion: app.getVersion(), platform: process.platform, arch: process.arch, cleanedEvents: cleanup.deleted } })
-  const secrets = new SecretStore(database)
-  const settings = (): ProviderSettings => ({
-    arkApiKey: secrets.get('arkApiKey') ?? '', arkTextModel: secrets.get('arkTextModel') ?? 'doubao-seed-2-1-turbo-260628', arkTextApi: secrets.get('arkTextApi') === 'chat-completions' ? 'chat-completions' : 'responses', arkTextStream: secrets.get('arkTextStream') !== 'false',
-    seedreamModel: secrets.get('seedreamModel') ?? 'doubao-seedream-5-0-pro-260628', seedanceModel: secrets.get('seedanceModel') ?? 'doubao-seedance-2-0-fast-260128',
-    speechApiKey: secrets.get('speechApiKey') ?? '', speechAppId: secrets.get('speechAppId') ?? '', speechAccessToken: secrets.get('speechAccessToken') ?? '',
-    speechResourceId: secrets.get('speechResourceId') ?? 'seed-tts-2.0', speechVoiceId: speechVoiceId(secrets), speechEnglishVoiceId: secrets.get('speechEnglishVoiceId') ?? DEFAULT_ENGLISH_SPEECH_VOICE_ID,
-  })
-  const ark = new ArkProvider(settings); const speech = new VolcanoSpeechProvider(settings); const media = new MediaStore(mediaRoot)
-  const publishers = new PublisherRegistry(secrets, join(root, 'diagnostics')); const oauth = new OAuthService(secrets); runner = new JobRunner(database, diagnostics)
-  registerPipelineHandlers({ db: database, runner, ark, speech, media, renderer: new FfmpegRenderer(), publishers })
-  registerIpc(database, runner, diagnostics, secrets, publishers, oauth, new ProviderTester(ark, speech, media, settings, diagnostics), media, speech)
-  mainWindow = createWindow(); runner.on('job', (job) => mainWindow?.webContents.send(IPC.jobEvent, job)); diagnostics.on('event', (event) => mainWindow?.webContents.send(IPC.diagnosticEvent, event)); runner.start()
-  diagnosticsTimer = setInterval(() => { if (runner?.isIdle()) { const result = diagnostics?.cleanup(); if (result?.deleted) database?.compactDiagnostics() } }, 24 * 60 * 60 * 1_000)
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow() })
+  try {
+    const root = app.getPath('userData'); const mediaRoot = join(root, 'media'); database = new AppDatabase(join(root, 'lumaworks.sqlite'))
+    protocol.handle('luma-media', (request) => {
+      const path = decodeURIComponent(new URL(request.url).pathname)
+      if (!path.startsWith(mediaRoot)) return new Response('Forbidden', { status: 403 })
+      return net.fetch(pathToFileURL(path).toString())
+    })
+    diagnostics = new DiagnosticsService(database, {
+      available: () => safeStorage.isEncryptionAvailable(),
+      encrypt: (value) => safeStorage.encryptString(value).toString('base64'),
+      decrypt: (value) => { try { return safeStorage.decryptString(Buffer.from(value, 'base64')) } catch { return null } },
+    }, join(root, 'diagnostics', 'emergency.jsonl'))
+    const cleanup = diagnostics.cleanup()
+    if (cleanup.deleted) database.compactDiagnostics()
+    diagnostics.log({ phase: 'app.ready', scope: 'app', message: 'LumaWorks 主进程已启动', details: { appVersion: app.getVersion(), platform: process.platform, arch: process.arch, cleanedEvents: cleanup.deleted } })
+    const secrets = new SecretStore(database)
+    const settings = (): ProviderSettings => ({
+      arkApiKey: secrets.get('arkApiKey') ?? '', arkTextModel: secrets.get('arkTextModel') ?? 'doubao-seed-2-1-turbo-260628', arkTextApi: secrets.get('arkTextApi') === 'chat-completions' ? 'chat-completions' : 'responses', arkTextStream: secrets.get('arkTextStream') !== 'false',
+      seedreamModel: secrets.get('seedreamModel') ?? 'doubao-seedream-5-0-pro-260628', seedanceModel: secrets.get('seedanceModel') ?? 'doubao-seedance-2-0-fast-260128',
+      speechApiKey: secrets.get('speechApiKey') ?? '', speechAppId: secrets.get('speechAppId') ?? '', speechAccessToken: secrets.get('speechAccessToken') ?? '',
+      speechResourceId: secrets.get('speechResourceId') ?? 'seed-tts-2.0', speechVoiceId: speechVoiceId(secrets), speechEnglishVoiceId: secrets.get('speechEnglishVoiceId') ?? DEFAULT_ENGLISH_SPEECH_VOICE_ID,
+    })
+    const ark = new ArkProvider(settings); const speech = new VolcanoSpeechProvider(settings); const media = new MediaStore(mediaRoot)
+    const publishers = new PublisherRegistry(secrets, join(root, 'diagnostics')); const oauth = new OAuthService(secrets); runner = new JobRunner(database, diagnostics)
+    registerPipelineHandlers({ db: database, runner, ark, speech, media, renderer: new FfmpegRenderer(), publishers })
+    registerIpc(database, runner, diagnostics, secrets, publishers, oauth, new ProviderTester(ark, speech, media, settings, diagnostics), media, speech)
+    mainWindow = createWindow(); runner.on('job', (job) => mainWindow?.webContents.send(IPC.jobEvent, job)); diagnostics.on('event', (event) => mainWindow?.webContents.send(IPC.diagnosticEvent, event)); runner.start()
+    diagnosticsTimer = setInterval(() => { if (runner?.isIdle()) { const result = diagnostics?.cleanup(); if (result?.deleted) database?.compactDiagnostics() } }, 24 * 60 * 60 * 1_000)
+    app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow() })
+  } catch (error) {
+    // A silent startup failure leaves the app running with only a Dock icon and
+    // no window, which is impossible to diagnose. Surface it loudly instead.
+    console.error('[lumaworks] 启动失败', error)
+    dialog.showErrorBox('LumaWorks 启动失败', error instanceof Error ? `${error.message}\n\n${error.stack ?? ''}` : String(error))
+    app.quit()
+  }
 })
 
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })

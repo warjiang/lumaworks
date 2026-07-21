@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { episodeScriptPrompt, episodeScriptSchema, storyBibleSchema, storyCharactersPrompt, storyEpisodesPrompt, storyFoundationPrompt, storyLocationsPrompt } from './prompts'
+import { episodeDetailPrompt, episodePlanPrompt, episodeReviewPrompt, episodeScriptSchema, shotGridImagePrompt, storyBibleSchema, storyCharactersPrompt, storyEpisodesPrompt, storyFoundationPrompt, storyLocationsPrompt } from './prompts'
 
 describe('pipeline schemas', () => {
   it('accepts a complete story bible', () => {
@@ -26,13 +26,45 @@ describe('pipeline schemas', () => {
     expect(storyEpisodesPrompt(context)).toContain('"episodes"')
   })
 
-  it('spells out the complete shot and dialogue contracts', () => {
-    const prompt = episodeScriptPrompt({ storyBible: '{"logline":"原创故事"}', episodeNumber: 1 })
-    for (const field of ['title', 'summary', 'shots', 'description', 'imagePrompt', 'videoPrompt', 'durationSeconds', 'dialogue', 'speaker', 'text', 'shotPosition', 'startMs', 'endMs']) {
+  it('spells out the plan contract with continuity rules', () => {
+    const prompt = episodePlanPrompt({ storyBible: '{"logline":"原创故事"}', episodeNumber: 1 })
+    for (const field of ['title', 'summary', 'shots', 'description', 'characters', 'location', 'sceneType', 'sourceText', 'carryOver', 'durationSeconds', 'dialogue', 'speaker', 'text', 'shotPosition', 'startMs', 'endMs']) {
       expect(prompt).toContain(`"${field}"`)
     }
     expect(prompt).toContain('数字必须是 JSON number')
     expect(prompt).toContain('所有视觉描述必须保持原创')
+    expect(prompt).toContain('动作桥梁')
+    expect(prompt).toContain('人物存续')
     expect(prompt).not.toContain('原始梗概')
+  })
+
+  it('spells out the detail contract with motion vocabulary rules', () => {
+    const prompt = episodeDetailPrompt({ storyBible: '{}', planJson: '[]' })
+    for (const field of ['shots', 'title', 'description', 'shotType', 'cameraMove', 'imagePrompt', 'videoPrompt', 'actingNotes', 'durationSeconds']) {
+      expect(prompt).toContain(`"${field}"`)
+    }
+    expect(prompt).toContain('正在说话')
+    expect(prompt).toContain('固定镜头')
+    expect(prompt).toContain('首帧')
+    expect(prompt).toContain('数字必须是 JSON number')
+  })
+
+  it('spells out the review contract with red lines', () => {
+    const prompt = episodeReviewPrompt({ storyBible: '{}', scriptJson: '{}' })
+    for (const rule of ['人物存续', '对话拆分', '时长合理', '动作桥梁', '可视化', '一致性', '运动词汇', '原创性']) {
+      expect(prompt).toContain(rule)
+    }
+    expect(prompt).toContain('"grade"')
+    expect(prompt).toContain('"problems"')
+  })
+
+  it('builds a 2x2 grid prompt with exactly four labeled cells and reference binding', () => {
+    const prompt = shotGridImagePrompt({ shots: [{ imagePrompt: '镜头一画面' }, { imagePrompt: '镜头二画面' }, { imagePrompt: '镜头三画面' }, { imagePrompt: '镜头四画面' }], referenceCount: 2 })
+    expect(prompt).toContain('exactly 4 visible panels')
+    expect(prompt).toContain('no merged panels, no missing panels')
+    expect(prompt).toContain('参考图1至参考图2')
+    for (const cell of ['格1（左上）：镜头一画面', '格2（右上）：镜头二画面', '格3（左下）：镜头三画面', '格4（右下）：镜头四画面']) {
+      expect(prompt).toContain(cell)
+    }
   })
 })

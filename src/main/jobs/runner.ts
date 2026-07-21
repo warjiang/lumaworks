@@ -24,7 +24,7 @@ const defaultLaneLimits: Record<JobLane, number> = {
 
 function jobLane(type: JobType): JobLane {
   if (['story-foundation', 'story-characters', 'story-locations', 'story-episodes', 'episode-script', 'translate-episode'].includes(type)) return 'text'
-  if (['character-image', 'location-image', 'shot-image'].includes(type)) return 'image'
+  if (['character-image', 'location-image', 'shot-image', 'shot-grid-image'].includes(type)) return 'image'
   if (type === 'shot-video') return 'video'
   if (type === 'voice-line') return 'speech'
   if (type === 'render-episode') return 'render'

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { extname, join } from 'node:path'
 import ffmpegPath from 'ffmpeg-static'
 
 function srtTime(ms: number): string {
@@ -19,7 +19,7 @@ export function buildSrt(lines: Array<{ text: string; startMs: number; endMs: nu
   return lines.map((line, index) => `${index + 1}\n${srtTime(line.startMs)} --> ${srtTime(Math.max(line.startMs + 300, line.endMs))}\n${line.text.trim()}\n`).join('\n')
 }
 
-function chunksForSubtitle(text: string, locale: 'zh-CN' | 'en-US'): string[] {
+export function chunksForSubtitle(text: string, locale: 'zh-CN' | 'en-US'): string[] {
   const clean = text.trim().replace(/\s+/g, locale === 'zh-CN' ? '' : ' ')
   if (!clean) return []
   if (locale === 'en-US') {
@@ -42,14 +42,26 @@ function chunksForSubtitle(text: string, locale: 'zh-CN' | 'en-US'): string[] {
 
 function assEscape(value: string): string { return value.replaceAll('\\', '\\').replaceAll('{', '\\{').replaceAll('}', '\\}') }
 
-export function buildAss(lines: Array<{ text: string; startMs: number; endMs: number }>, locale: 'zh-CN' | 'en-US'): string {
+export interface AssLineInput { text: string; startMs: number; endMs: number; chunks?: Array<{ text: string; startMs: number; endMs: number }> }
+
+export function buildAss(lines: AssLineInput[], locale: 'zh-CN' | 'en-US'): string {
   const header = `[Script Info]\nScriptType: v4.00+\nPlayResX: 1080\nPlayResY: 1920\nWrapStyle: 2\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\nFormat: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding\nStyle: Default,PingFang SC,54,&H00F4F3EF,&H00F4F3EF,&H0015171A,&H900A0B0D,-1,0,0,0,100,100,0,0,3,3,0,2,96,96,200,1\n\n[Events]\nFormat: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text\n`
   const events: string[] = []
   for (const line of lines) {
+    if (line.chunks?.length) {
+      for (const chunk of line.chunks) {
+        events.push(`Dialogue: 0,${assTime(chunk.startMs)},${assTime(Math.max(chunk.startMs + 200, chunk.endMs))},Default,,0,0,0,,${assEscape(chunk.text)}`)
+      }
+      continue
+    }
     const chunks = chunksForSubtitle(line.text, locale); const duration = Math.max(300, line.endMs - line.startMs)
+    const weights = chunks.map((chunk) => Math.max(1, [...chunk.replace(/\\N/g, '').replace(/\s/g, '')].length))
+    const total = weights.reduce((sum, value) => sum + value, 0)
+    let cursor = line.startMs
     chunks.forEach((chunk, index) => {
-      const start = line.startMs + Math.round(duration * index / chunks.length); const end = line.startMs + Math.round(duration * (index + 1) / chunks.length)
-      events.push(`Dialogue: 0,${assTime(start)},${assTime(end)},Default,,0,0,0,,${assEscape(chunk)}`)
+      const end = index === chunks.length - 1 ? line.startMs + duration : cursor + Math.round(duration * weights[index] / total)
+      events.push(`Dialogue: 0,${assTime(cursor)},${assTime(end)},Default,,0,0,0,,${assEscape(chunk)}`)
+      cursor = end
     })
   }
   return header + events.join('\n') + '\n'
@@ -68,6 +80,24 @@ export class FfmpegRenderer {
     return Math.round((Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])) * 1000)
   }
 
+  /**
+   * Slice a grid storyboard image into per-shot cells with the crop filter.
+   * Cells are returned in reading order (left-to-right, top-to-bottom).
+   */
+  async sliceGrid(imagePath: string, rows: number, cols: number, outputDir: string, signal?: AbortSignal): Promise<string[]> {
+    if (rows < 1 || cols < 1) throw new Error('宫格行列必须为正数')
+    await mkdir(outputDir, { recursive: true })
+    const ext = extname(imagePath) || '.jpg'
+    const cells: string[] = []
+    for (let index = 0; index < rows * cols; index++) {
+      const col = index % cols; const row = Math.floor(index / cols)
+      const outputPath = join(outputDir, `cell-${index + 1}${ext}`)
+      await this.run(['-y', '-i', imagePath, '-vf', `crop=w=iw/${cols}:h=ih/${rows}:x=iw/${cols}*${col}:y=ih/${rows}*${row}`, '-frames:v', '1', outputPath], signal)
+      cells.push(outputPath)
+    }
+    return cells
+  }
+
   async calibrateAudio(inputPath: string, outputPath: string, targetMs: number, signal?: AbortSignal): Promise<number> {
     const actualMs = await this.probeDuration(inputPath, signal); const tempo = actualMs / Math.max(1, targetMs)
     if (tempo <= 1.005) return actualMs
@@ -80,7 +110,7 @@ export class FfmpegRenderer {
     outputDir: string
     clips: string[]
     voiceTracks: Array<{ path: string; startMs: number }>
-    lines: Array<{ text: string; startMs: number; endMs: number }>
+    lines: AssLineInput[]
     locale: 'zh-CN' | 'en-US'
     durationMs: number
     signal?: AbortSignal
