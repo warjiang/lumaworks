@@ -216,7 +216,7 @@ describe('Ark Seedance API', () => {
 
   it('builds official first-frame and first/last-frame content roles', () => {
     const first = buildSeedanceRequest({ model: baseSettings.seedanceModel, prompt: 'move', firstFrameUrl: 'data:image/png;base64,AA==', durationSeconds: 3 })
-    expect(first.body).toMatchObject({ resolution: '1080p', ratio: '9:16', duration: 4, generate_audio: false, watermark: false })
+    expect(first.body).toMatchObject({ resolution: '1080p', ratio: '9:16', duration: 4, generate_audio: true, watermark: false })
     expect(first.body.content[1]).toMatchObject({ type: 'image_url', role: 'first_frame' })
 
     const both = buildSeedanceRequest({ model: baseSettings.seedanceModel, prompt: 'move', firstFrameUrl: 'first', lastFrameUrl: 'last', durationSeconds: 15, returnLastFrame: true })
@@ -237,6 +237,11 @@ describe('Ark Seedance API', () => {
     expect(request.body.duration).toBe(2)
     expect(seedanceCapabilities(model).supportsLastFrame).toBe(false)
     expect(() => buildSeedanceRequest({ model, prompt: 'move', firstFrameUrl: 'first', lastFrameUrl: 'last' })).toThrow('不支持首尾帧模式')
+  })
+
+  it('defaults generate_audio on for 2.x models and honors an explicit opt-out', () => {
+    expect(buildSeedanceRequest({ model: 'doubao-seedance-2-0-fast-260128', prompt: 'move', firstFrameUrl: 'first' }).body.generate_audio).toBe(true)
+    expect(buildSeedanceRequest({ model: 'doubao-seedance-2-0-fast-260128', prompt: 'move', firstFrameUrl: 'first', generateAudio: false }).body.generate_audio).toBe(false)
   })
 
   it('accepts every official query status and rejects unknown states', () => {
@@ -262,7 +267,7 @@ describe('Ark Seedance API', () => {
     const result = await provider.generateVideo({ prompt: 'move', imagePath: testImagePath, durationSeconds: 4, returnLastFrame: true })
     expect(result).toEqual({ url: 'https://example.test/video.mp4', externalId: 'cgt-test', lastFrameUrl: 'https://example.test/last.png' })
     const createBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<string, unknown>
-    expect(createBody).toMatchObject({ model: baseSettings.seedanceModel, resolution: '1080p', ratio: '9:16', duration: 4, generate_audio: false, return_last_frame: true, watermark: false })
+    expect(createBody).toMatchObject({ model: baseSettings.seedanceModel, resolution: '1080p', ratio: '9:16', duration: 4, generate_audio: true, return_last_frame: true, watermark: false })
     expect(fetchMock.mock.calls.slice(1).every((call) => call[1]?.method === 'GET')).toBe(true)
   })
 

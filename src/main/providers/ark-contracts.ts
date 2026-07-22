@@ -173,6 +173,7 @@ export function buildSeedanceRequest(input: {
   durationSeconds?: number
   returnLastFrame?: boolean
   resolution?: string
+  generateAudio?: boolean
 }): { body: SeedanceRequestBody; capabilities: SeedanceCapabilities; requestedDuration: number; effectiveDuration: number; omittedUnsupportedParameters: string[] } {
   const prompt = input.prompt.trim()
   if (!prompt) throw new Error('Seedance 提示词不能为空')
@@ -199,7 +200,9 @@ export function buildSeedanceRequest(input: {
     duration: effectiveDuration,
     watermark: false,
   }
-  if (capabilities.supportsGenerateAudio) body.generate_audio = false
+  // Seedance 2.x can synthesize ambience/foley matched to the scene. It becomes
+  // the ambient bed under the TTS voice tracks in the final render, so default on.
+  if (capabilities.supportsGenerateAudio) body.generate_audio = input.generateAudio ?? true
   if (input.returnLastFrame) body.return_last_frame = true
   return {
     body,

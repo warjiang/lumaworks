@@ -213,7 +213,7 @@ export function registerPipelineHandlers(input: {
       carryOver ? `承接上镜：${carryOver}` : '',
       shot.videoPrompt,
       bridging ? '镜头结尾自然收束到下一镜头的开场构图，与下一镜头形成无缝衔接' : '',
-      '人物面部稳定不变形、五官清晰、动作连贯自然，不僵硬，无穿模无卡顿；禁止出现外形、着装、配饰完全一致的人物分身或双胞胎效果，同一画面仅保留单个对应人物；保持无字幕，避免生成任何文字或字幕；不要生成水印。',
+      '人物面部稳定不变形、五官清晰、动作连贯自然，不僵硬，无穿模无卡顿；禁止出现外形、着装、配饰完全一致的人物分身或双胞胎效果，同一画面仅保留单个对应人物；保持无字幕，避免生成任何文字或字幕；不要生成水印。音频仅生成环境音与音效，不要生成任何人物对白、台词或旁白（配音由后期单独合成）。',
     ].filter(Boolean).join('\n')
     stage('video.generate', '正在提交 Seedance 视频任务', { continuityBridge: bridging, carryOver: Boolean(carryOver) })
     const result = await ark.withTrace(trace).generateVideo({ prompt, imagePath: shot.imagePath, durationSeconds: shot.durationSeconds, lastFramePath: explicitLastFrame ?? bridgePath, resolution: typeof data.resolution === 'string' ? data.resolution : undefined }, ({ progress: value, message }) => value === undefined ? stage('video.waiting', message ?? '等待 Seedance 处理') : progress(value, message), signal)

@@ -70,6 +70,9 @@ export function buildAss(lines: AssLineInput[], locale: 'zh-CN' | 'en-US'): stri
 function concatEscape(path: string): string { return path.replaceAll("'", "'\\''") }
 function filterEscape(path: string): string { return path.replaceAll('\\', '\\\\').replaceAll(':', '\\:').replaceAll("'", "\\'") }
 
+/** Seedance ambience sits under the TTS voices so generated speech/foley never drowns the dub. */
+const AMBIENT_BED_VOLUME = 0.3
+
 export class FfmpegRenderer {
   private readonly binary = ffmpegPath || 'ffmpeg'
 
@@ -78,6 +81,11 @@ export class FfmpegRenderer {
     const match = output.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/)
     if (!match) throw new Error(`无法读取媒体时长: ${path}`)
     return Math.round((Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])) * 1000)
+  }
+
+  async probeHasAudio(path: string, signal?: AbortSignal): Promise<boolean> {
+    const output = await this.capture(['-hide_banner', '-i', path], signal, true)
+    return /Stream #\S+.*Audio:/.test(output)
   }
 
   /**
@@ -122,21 +130,36 @@ export class FfmpegRenderer {
     const concatPath = join(input.outputDir, 'clips.txt'); const subtitlePath = join(input.outputDir, 'captions.ass')
     const masterPath = join(input.outputDir, 'master.mp4'); const voicedPath = join(input.outputDir, 'voiced.mp4')
     const videoPath = join(input.outputDir, 'final.mp4'); const coverPath = join(input.outputDir, 'cover.jpg'); const durationSeconds = (input.durationMs / 1000).toFixed(3)
-    await Promise.all([writeFile(concatPath, input.clips.map((path) => `file '${concatEscape(path)}'`).join('\n')), writeFile(subtitlePath, buildAss(input.lines, input.locale))])
-    input.onStage?.('render.video', '正在拼接并编码镜头', { clips: input.clips.length, durationMs: input.durationMs })
-    await this.run(['-y', '-f', 'concat', '-safe', '0', '-i', concatPath, '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,format=yuv420p', '-t', durationSeconds, '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-an', masterPath], input.signal, (ratio) => input.onProgress?.(ratio * 50))
+    // The concat demuxer needs uniform streams, but clips generated before
+    // generate_audio existed (or from models without audio support) have no
+    // audio track at all. Normalize every clip to h264 + aac 48kHz stereo,
+    // padding silent ambience where the source has none.
+    input.onStage?.('render.normalize', '正在归一化镜头音轨', { clips: input.clips.length })
+    const normalized: string[] = []
+    for (const [index, clip] of input.clips.entries()) {
+      const target = join(input.outputDir, `normalized-${index + 1}.mp4`)
+      if (await this.probeHasAudio(clip, input.signal)) {
+        await this.run(['-y', '-i', clip, '-map', '0:v:0', '-map', '0:a:0', '-c:v', 'copy', '-c:a', 'aac', '-ar', '48000', '-ac', '2', target], input.signal)
+      } else {
+        await this.run(['-y', '-i', clip, '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo', '-map', '0:v:0', '-map', '1:a:0', '-c:v', 'copy', '-c:a', 'aac', '-shortest', target], input.signal)
+      }
+      normalized.push(target)
+    }
+    await Promise.all([writeFile(concatPath, normalized.map((path) => `file '${concatEscape(path)}'`).join('\n')), writeFile(subtitlePath, buildAss(input.lines, input.locale))])
+    input.onStage?.('render.video', '正在拼接并编码镜头', { clips: normalized.length, durationMs: input.durationMs })
+    await this.run(['-y', '-f', 'concat', '-safe', '0', '-i', concatPath, '-vf', 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30,format=yuv420p', '-t', durationSeconds, '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-c:a', 'aac', masterPath], input.signal, (ratio) => input.onProgress?.(ratio * 50))
     let source = masterPath
     if (input.voiceTracks.length) {
-      input.onStage?.('render.audio', '正在按最终时间轴混合角色配音', { tracks: input.voiceTracks.length })
+      input.onStage?.('render.audio', '正在按最终时间轴混合环境音与角色配音', { tracks: input.voiceTracks.length })
       const audioInputs = input.voiceTracks.flatMap((track) => ['-i', track.path])
       const delayed = input.voiceTracks.map((track, index) => `[${index + 1}:a]adelay=${Math.max(0, track.startMs)}|${Math.max(0, track.startMs)}[a${index}]`)
       const mixInputs = input.voiceTracks.map((_track, index) => `[a${index}]`).join('')
-      const filter = `${delayed.join(';')};${mixInputs}amix=inputs=${input.voiceTracks.length}:duration=longest:normalize=0,apad,atrim=0:${durationSeconds}[voice]`
+      const filter = `[0:a]volume=${AMBIENT_BED_VOLUME}[bed];${delayed.join(';')};[bed]${mixInputs}amix=inputs=${input.voiceTracks.length + 1}:duration=longest:normalize=0,apad,atrim=0:${durationSeconds}[voice]`
       await this.run(['-y', '-i', masterPath, ...audioInputs, '-filter_complex', filter, '-map', '0:v:0', '-map', '[voice]', '-t', durationSeconds, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', voicedPath], input.signal, (ratio) => input.onProgress?.(50 + ratio * 20))
       source = voicedPath
     } else input.onProgress?.(70)
     input.onStage?.('render.subtitles', '正在烧录安全区字幕', { subtitlePath })
-    await this.run(['-y', '-i', source, '-vf', `ass='${filterEscape(subtitlePath)}'`, '-t', durationSeconds, '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', ...(input.voiceTracks.length ? ['-c:a', 'copy'] : ['-an']), videoPath], input.signal, (ratio) => input.onProgress?.(70 + ratio * 25))
+    await this.run(['-y', '-i', source, '-vf', `ass='${filterEscape(subtitlePath)}'`, '-t', durationSeconds, '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-c:a', 'copy', videoPath], input.signal, (ratio) => input.onProgress?.(70 + ratio * 25))
     input.onStage?.('render.cover', '正在提取封面')
     await this.run(['-y', '-ss', '00:00:01', '-i', videoPath, '-frames:v', '1', '-q:v', '2', coverPath], input.signal)
     input.onProgress?.(100)
