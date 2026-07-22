@@ -3,8 +3,8 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { CharacterVoice, ContentLocale, CreateProjectInput, DashboardSnapshot, DiagnosticLevel, DiagnosticScope, DialoguePlanSummary, Episode, Job, JobType, Project, PublishDraft, PublishDraftInput, Shot, ShotDirection, StoryBible, VoiceLine, VoicePresetId } from '@shared/domain'
-import { inferVoicePreset, voicePreset } from '@shared/voices'
+import type { CharacterVoice, ContentLocale, CreateProjectInput, DashboardSnapshot, DiagnosticLevel, DiagnosticScope, DialoguePlanSummary, Episode, Job, JobType, Project, PublishDraft, PublishDraftInput, Shot, ShotDirection, StoryBible, UpdateProjectInput, VoiceLine, VoicePresetId } from '@shared/domain'
+import { inferVoicePreset, isLegacyTts1Voice, voicePreset } from '@shared/voices'
 import * as schema from './schema'
 
 const now = () => new Date().toISOString()
@@ -137,7 +137,29 @@ export class AppDatabase {
     this.sqlite.exec(`UPDATE voice_lines SET spoken_text=COALESCE(spoken_text,text),original_start_ms=COALESCE(original_start_ms,start_ms),original_end_ms=COALESCE(original_end_ms,end_ms)`)
     this.sqlite.exec(`CREATE INDEX IF NOT EXISTS jobs_project_idx ON jobs(project_id, created_at)`)
     this.backfillCharacterVoices()
+    this.migrateLegacyTts1Voices()
     this.backfillJobProjects()
+  }
+
+  /**
+   * Retired TTS 1.0 (moon/mars) voices are unusable on accounts provisioned
+   * through the new console (403) and lack subtitle timestamps. Rewrite any
+   * stored 1.0 voice IDs — including manually locked ones — to the owning
+   * preset's 2.0 voice, and invalidate affected dialogue plans.
+   */
+  private migrateLegacyTts1Voices(): void {
+    const rows = this.sqlite.prepare(`SELECT id, project_id projectId, COALESCE(voice_preset,'narrator') voicePreset, zh_voice_id zhVoiceId, en_voice_id enVoiceId FROM characters`).all() as Array<{ id: string; projectId: string; voicePreset: string; zhVoiceId: string; enVoiceId: string }>
+    const update = this.sqlite.prepare(`UPDATE characters SET zh_voice_id=?, en_voice_id=?, zh_voice_warning=NULL, en_voice_warning=NULL, updated_at=? WHERE id=?`)
+    const affectedProjects = new Set<string>()
+    for (const row of rows) {
+      if (!isLegacyTts1Voice(row.zhVoiceId) && !isLegacyTts1Voice(row.enVoiceId)) continue
+      const preset = voicePreset(row.voicePreset as VoicePresetId)
+      update.run(isLegacyTts1Voice(row.zhVoiceId) ? preset.zhVoiceId : row.zhVoiceId, isLegacyTts1Voice(row.enVoiceId) ? preset.enVoiceId : row.enVoiceId, now(), row.id)
+      affectedProjects.add(row.projectId)
+    }
+    if (!affectedProjects.size) return
+    for (const projectId of affectedProjects) for (const episode of this.listEpisodes(projectId)) this.invalidateDialoguePlans(episode.id)
+    console.log(`[lumaworks] 已将 ${affectedProjects.size} 个项目中退役的 1.0 音色迁移到 2.0 uranus 音色`)
   }
 
   private addColumnIfMissing(table: string, column: string, declaration: string): void {
@@ -205,6 +227,10 @@ export class AppDatabase {
     return (this.sqlite.prepare(`SELECT id, title, synopsis, visual_style visualStyle, aspect_ratio aspectRatio, stage, auto_advance autoAdvance, created_at createdAt, updated_at updatedAt FROM projects WHERE id = ?`).get(id) as Project | undefined) ?? null
   }
 
+  updateProject(input: UpdateProjectInput): void {
+    this.sqlite.prepare(`UPDATE projects SET title=?, synopsis=?, visual_style=?, updated_at=? WHERE id=?`).run(input.title, input.synopsis, input.visualStyle, now(), input.id)
+  }
+
   setProjectStage(id: string, stage: string): void { this.sqlite.prepare(`UPDATE projects SET stage=?, updated_at=? WHERE id=?`).run(stage, now(), id) }
 
   listEpisodes(projectId: string): Episode[] {
@@ -235,6 +261,7 @@ export class AppDatabase {
   }
 
   updateCharacterVoice(input: { id: string; voicePreset: VoicePresetId; zhVoiceId: string; enVoiceId: string; voiceLocked: boolean }): void {
+    if (isLegacyTts1Voice(input.zhVoiceId) || isLegacyTts1Voice(input.enVoiceId)) throw new Error('1.0（moon/mars）音色已停用，请选择 2.0（uranus）音色；1.0 音色需单独开通且不支持字幕时间戳')
     const result = this.sqlite.prepare(`UPDATE characters SET voice_preset=?,zh_voice_id=?,en_voice_id=?,zh_voice_warning=NULL,en_voice_warning=NULL,voice_locked=?,updated_at=? WHERE id=?`).run(input.voicePreset, input.zhVoiceId.trim(), input.enVoiceId.trim(), input.voiceLocked ? 1 : 0, now(), input.id)
     if (!result.changes) throw new Error('角色不存在')
     const row = this.sqlite.prepare(`SELECT e.id episodeId FROM characters c JOIN episodes e ON e.project_id=c.project_id WHERE c.id=?`).all(input.id) as Array<{ episodeId: string }>
@@ -531,6 +558,10 @@ export class AppDatabase {
     return id
   }
 
+  listGridAssets(projectId: string): Array<{ id: string; path: string; createdAt: string }> {
+    return this.sqlite.prepare(`SELECT id, path, created_at createdAt FROM assets WHERE project_id=? AND kind='storyboard-grid' ORDER BY created_at DESC`).all(projectId) as Array<{ id: string; path: string; createdAt: string }>
+  }
+
   createPublishJob(draftId: string, platform: string): string {
     const id = randomUUID(); const stamp = now()
     this.sqlite.prepare(`INSERT INTO publish_jobs VALUES(?,?,?,NULL,'running',NULL,NULL,0,?,?) ON CONFLICT(draft_id) DO UPDATE SET status='running',error=NULL,attempts=publish_jobs.attempts+1,updated_at=excluded.updated_at`).run(id, draftId, platform, stamp, stamp)
@@ -561,6 +592,6 @@ export class AppDatabase {
   snapshot(projectId?: string, configured = { ark: false, speech: false, tiktok: false, youtube: false }): DashboardSnapshot {
     const projects = this.listProjects(); const selected = projectId ? this.getProject(projectId) : projects[0] ?? null
     const episodes = selected ? this.listEpisodes(selected.id) : []
-    return { projects, activeProject: selected ? { ...selected, episodes, shots: this.listShotsForProject(selected.id), characters: this.listCharacters(selected.id), dialoguePlans: episodes.flatMap((episode) => this.listDialoguePlans(episode.id)) } : null, jobs: this.listJobs(), publishDrafts: this.listPublishDrafts(), renders: selected ? this.listRendersForProject(selected.id) as DashboardSnapshot['renders'] : [], configured, modelSettings: { arkTextModel: 'doubao-seed-2-1-turbo-260628', arkTextApi: 'responses', arkTextStream: true, seedreamModel: 'doubao-seedream-5-0-pro-260628', seedanceModel: 'doubao-seedance-2-0-fast-260128', speechResourceId: 'seed-tts-2.0', speechVoiceId: 'zh_female_vv_uranus_bigtts', speechEnglishVoiceId: 'en_female_dacey_uranus_bigtts' } }
+    return { projects, activeProject: selected ? { ...selected, episodes, shots: this.listShotsForProject(selected.id), characters: this.listCharacters(selected.id), dialoguePlans: episodes.flatMap((episode) => this.listDialoguePlans(episode.id)), gridAssets: this.listGridAssets(selected.id) } : null, jobs: this.listJobs(), publishDrafts: this.listPublishDrafts(), renders: selected ? this.listRendersForProject(selected.id) as DashboardSnapshot['renders'] : [], configured, modelSettings: { arkTextModel: 'doubao-seed-2-1-turbo-260628', arkTextApi: 'responses', arkTextStream: true, seedreamModel: 'doubao-seedream-5-0-pro-260628', seedanceModel: 'doubao-seedance-2-0-fast-260128', speechResourceId: 'seed-tts-2.0', speechVoiceId: 'zh_female_vv_uranus_bigtts', speechEnglishVoiceId: 'en_female_dacey_uranus_bigtts' } }
   }
 }

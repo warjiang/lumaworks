@@ -1,8 +1,9 @@
-import type { ContentLocale, CreateProjectInput, DashboardSnapshot, DiagnosticEvent, EnqueueJobInput, Job, JobDetails, ModelTestKind, ModelTestResult, PublishDraftInput, RendererErrorInput, SaveSettingsInput, SystemEventFilters, UpdateCharacterVoiceInput } from './domain'
+import type { ContentLocale, CreateProjectInput, DashboardSnapshot, DiagnosticEvent, EnqueueJobInput, Job, JobDetails, ModelTestKind, ModelTestResult, PublishDraftInput, RendererErrorInput, SaveSettingsInput, SystemEventFilters, UpdateCharacterVoiceInput, UpdateProjectInput } from './domain'
 
 export const IPC = {
   dashboard: 'dashboard:get',
   createProject: 'project:create',
+  updateProject: 'project:update',
   selectProject: 'project:select',
   enqueueJob: 'job:enqueue',
   cancelJob: 'job:cancel',
@@ -29,6 +30,7 @@ export const IPC = {
 export interface LumaWorksApi {
   getDashboard(projectId?: string): Promise<DashboardSnapshot>
   createProject(input: CreateProjectInput): Promise<string>
+  updateProject(input: UpdateProjectInput): Promise<void>
   selectProject(projectId: string): Promise<DashboardSnapshot>
   enqueueJob(input: EnqueueJobInput): Promise<Job>
   cancelJob(jobId: string): Promise<void>

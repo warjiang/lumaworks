@@ -3,8 +3,9 @@ import { gzipSync } from 'node:zlib'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from 'electron'
 import { pathToFileURL } from 'node:url'
-import { createProjectInputSchema, enqueueJobInputSchema, modelTestKindSchema, publishDraftInputSchema, rendererErrorSchema, saveSettingsInputSchema, updateCharacterVoiceSchema, type ContentLocale, type DiagnosticLevel, type Platform, type SystemEventFilters } from '@shared/domain'
+import { createProjectInputSchema, enqueueJobInputSchema, modelTestKindSchema, publishDraftInputSchema, rendererErrorSchema, saveSettingsInputSchema, updateCharacterVoiceSchema, updateProjectInputSchema, type ContentLocale, type DiagnosticLevel, type Platform, type SystemEventFilters } from '@shared/domain'
 import { IPC } from '@shared/ipc'
+import { isLegacyTts1Voice } from '@shared/voices'
 import { AppDatabase } from './db/database'
 import { DiagnosticsService } from './diagnostics/service'
 import { JobRunner } from './jobs/runner'
@@ -45,6 +46,9 @@ function createWindow(): BrowserWindow {
   })
   if (process.env.ELECTRON_RENDERER_URL) void window.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void window.loadFile(join(__dirname, '../renderer/index.html'))
+  // Keep trackpad pinch gestures for the image viewer's own zoom handling
+  // instead of Chromium's whole-page visual zoom.
+  void window.webContents.setVisualZoomLevelLimits(1, 1)
   window.webContents.setWindowOpenHandler(({ url }) => { void shell.openExternal(url); return { action: 'deny' } })
   return window
 }
@@ -67,11 +71,20 @@ function registerIpc(db: AppDatabase, jobs: JobRunner, logs: DiagnosticsService,
   ipcMain.handle(IPC.dashboard, (_event, projectId?: string) => snapshot(projectId))
   ipcMain.handle(IPC.selectProject, (_event, projectId: string) => { selectedProjectId = projectId; return snapshot(projectId) })
   ipcMain.handle(IPC.createProject, (_event, raw: unknown) => { const id = db.createProject(createProjectInputSchema.parse(raw)); selectedProjectId = id; return id })
+  ipcMain.handle(IPC.updateProject, (_event, raw: unknown) => {
+    const input = updateProjectInputSchema.parse(raw)
+    if (!db.getProject(input.id)) throw new Error('项目不存在')
+    db.updateProject(input)
+  })
   ipcMain.handle(IPC.enqueueJob, (_event, raw: unknown) => jobs.enqueue(enqueueJobInputSchema.parse(raw)))
   ipcMain.handle(IPC.cancelJob, (_event, id: string) => jobs.cancel(id))
   ipcMain.handle(IPC.retryJob, (_event, id: string) => jobs.retry(id))
   ipcMain.handle(IPC.saveSettings, (_event, raw: unknown) => {
     const values = saveSettingsInputSchema.parse(raw)
+    for (const key of ['speechVoiceId', 'speechEnglishVoiceId'] as const) {
+      const value = values[key]
+      if (value && isLegacyTts1Voice(value)) throw new Error(`默认音色 ${value} 是已停用的 1.0（moon/mars）音色，请改用 2.0（uranus）音色，例如 zh_female_vv_uranus_bigtts / en_female_dacey_uranus_bigtts`)
+    }
     for (const [key, value] of Object.entries(values)) if (typeof value === 'string' && value) secrets.set(key, value)
   })
   ipcMain.handle(IPC.testModel, (_event, raw: unknown) => tester.test(modelTestKindSchema.parse(raw)))

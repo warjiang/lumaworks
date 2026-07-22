@@ -67,6 +67,30 @@ describe('AppDatabase', () => {
     db.close()
   })
 
+  it('migrates retired 1.0 voices to preset 2.0 voices on startup, including locked characters', async () => {
+    const path = await mkdtemp(join(tmpdir(), 'lumaworks-legacy-tts1-')); paths.push(path)
+    const databasePath = join(path, 'legacy.sqlite')
+    {
+      const db = new AppDatabase(databasePath)
+      const projectId = db.createProject({ title: '音色迁移', synopsis: '这是用于验证 1.0 音色自动迁移的完整故事简介。', visualStyle: 'cinematic' })
+      const bible = { world: '城市', visualDirection: '写实', logline: '冲突', characters: [{ name: '裴衍州', role: '男主角', appearance: '32岁男性', personality: '克制', voice: '低沉男中音' }], locations: [], episodes: [{ number: 1, title: '第一集', summary: '剧情', hook: '钩子', cliffhanger: '悬念' }] }
+      db.saveStoryBibleBundle(projectId, bible)
+      const character = db.listCharacters(projectId)[0]
+      db.sqlite.prepare(`UPDATE characters SET voice_preset='mature-male', zh_voice_id='zh_male_beijingxiaoye_moon_bigtts', en_voice_id='en_male_corey_emo_v2_mars_bigtts', voice_locked=1, zh_voice_warning='旧警告' WHERE id=?`).run(character.id)
+      db.replaceEpisodeScript(projectId, { title: '第一集', summary: '测试', shots: Array.from({ length: 8 }, (_, index) => ({ title: `镜头${index}`, description: '剧情', imagePrompt: '图', videoPrompt: '动', durationSeconds: 4 })), dialogue: [] })
+      db.applyDialoguePlan(db.listEpisodes(projectId)[0].id, 'zh-CN', 'plan-v1', 4_000, [])
+      db.close()
+    }
+    const db = new AppDatabase(databasePath)
+    const character = db.listCharacters(db.listProjects()[0].id)[0]
+    expect(character.zhVoiceId).toBe('zh_male_dayi_uranus_bigtts')
+    expect(character.enVoiceId).toBe('en_male_tim_uranus_bigtts')
+    expect(character.zhVoiceWarning).toBeNull()
+    expect(db.getDialoguePlan(db.listEpisodes(db.listProjects()[0].id)[0].id, 'zh-CN')?.status).toBe('stale')
+    expect(() => db.updateCharacterVoice({ id: character.id, voicePreset: 'mature-male', zhVoiceId: 'zh_male_beijingxiaoye_moon_bigtts', enVoiceId: 'en_male_tim_uranus_bigtts', voiceLocked: true })).toThrow('1.0（moon/mars）音色已停用')
+    db.close()
+  })
+
   it('reassigns voices from the story bible even for manually locked characters', async () => {
     const db = await createDb(); const projectId = db.createProject({ title: '音色重推', synopsis: '这是用于验证音色重新分配会覆盖人工锁定的完整故事简介。', visualStyle: 'cinematic' })
     const bible = {
@@ -82,7 +106,7 @@ describe('AppDatabase', () => {
     expect(db.reassignCharacterVoices(projectId)).toBe(2)
     const voices = db.listCharacters(projectId)
     expect(voices.find((character) => character.name === '贺兰秋')).toMatchObject({ voicePreset: 'young-female', zhVoiceId: 'zh_female_vv_uranus_bigtts', voiceLocked: false })
-    expect(voices.find((character) => character.name === '沈书樾')).toMatchObject({ voicePreset: 'young-male', zhVoiceId: 'zh_male_yangguangqingnian_moon_bigtts', voiceLocked: false })
+    expect(voices.find((character) => character.name === '沈书樾')).toMatchObject({ voicePreset: 'young-male', zhVoiceId: 'zh_male_liufei_uranus_bigtts', voiceLocked: false })
     db.close()
   })
 

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowClockwise, ArrowRight, ArrowsOutSimple, CheckCircle, FilmReel, FolderOpen, GearSix, ImageSquare, MagicWand,
-  Pause, Play, Plus, RocketLaunch, SlidersHorizontal, SpeakerHigh, SpinnerGap, Stack, Subtitles,
+  Pause, PencilSimple, Play, Plus, RocketLaunch, SlidersHorizontal, SpeakerHigh, SpinnerGap, Stack, Subtitles,
   UploadSimple, Users, VideoCamera, WarningCircle, X,
 } from '@phosphor-icons/react'
-import type { CharacterVoice, ContentLocale, DashboardSnapshot, DiagnosticEvent, EnqueueJobInput, Job, JobDetails, ModelTestKind, ModelTestResult, Platform, ProjectStage, SaveSettingsInput, Shot, VoicePresetId } from '@shared/domain'
+import type { CharacterVoice, ContentLocale, DashboardSnapshot, DiagnosticEvent, EnqueueJobInput, Job, JobDetails, ModelTestKind, ModelTestResult, Platform, Project, ProjectStage, SaveSettingsInput, Shot, VoicePresetId } from '@shared/domain'
 import { VOICE_PRESETS, voicePreset } from '@shared/voices'
 import { MediaViewer, type MediaPreview } from './MediaViewer'
 
@@ -112,6 +112,7 @@ function ConnectionBadge({ ok, label }: { ok: boolean; label: string }) { return
 
 function Studio({ data, enqueue, enqueueMany, onNew, refresh }: { data: DashboardSnapshot; enqueue(input: EnqueueJobInput): Promise<void>; enqueueMany(inputs: EnqueueJobInput[]): Promise<void>; onNew(): void; refresh(): void }) {
   const [preview, setPreview] = useState<MediaPreview | null>(null)
+  const [editingProject, setEditingProject] = useState(false)
   const project = data.activeProject
   if (!project) return <EmptyStudio onNew={onNew} />
   const episode = project.episodes[0]
@@ -129,8 +130,10 @@ function Studio({ data, enqueue, enqueueMany, onNew, refresh }: { data: Dashboar
   const batchGrid = async () => {
     if (!episode) return
     const pending = project.shots.filter((shot) => !shot.imagePath)
-    if (!pending.length) return
-    const { groups, singles } = groupShotsForGrid(pending)
+    // No missing keyframes means the click is a "redo everything in grid mode".
+    const targets = pending.length ? pending : project.shots
+    if (!targets.length) return
+    const { groups, singles } = groupShotsForGrid(targets)
     return enqueueMany([
       ...groups.map((shotIds) => ({ type: 'shot-grid-image' as const, entityId: episode.id, payload: { shotIds }, force: true })),
       ...singles.map((shotId) => ({ type: 'shot-image' as const, entityId: shotId, payload: {}, force: true })),
@@ -147,6 +150,7 @@ function Studio({ data, enqueue, enqueueMany, onNew, refresh }: { data: Dashboar
     <section className="concept-strip">
       <div><span className="section-kicker">创作设定</span><p>{project.synopsis}</p></div>
       <dl><div><dt>画幅</dt><dd>9:16</dd></div><div><dt>风格</dt><dd>{project.visualStyle}</dd></div><div><dt>目标</dt><dd>60-90 秒</dd></div></dl>
+      <button type="button" className="icon-button concept-edit" onClick={() => setEditingProject(true)} aria-label="编辑项目设定" title="编辑名称、梗概与视觉风格"><PencilSimple /></button>
     </section>
     <section className="action-board">
       <div className="board-heading"><div><h2>制作流程</h2><p>每一步都可以审核、重做或继续推进。</p></div></div>
@@ -159,9 +163,11 @@ function Studio({ data, enqueue, enqueueMany, onNew, refresh }: { data: Dashboar
       </div>
     </section>
     {!!project.characters.length && <CharacterVoices characters={project.characters} onSaved={refresh} />}
+    {!!project.gridAssets.length && <section className="grid-assets-section"><div className="board-heading"><div><h2>宫格合图</h2><p>每张合图同版切出 4 个镜头的关键帧；点击看大图，对比同版镜头的色调与光影是否一致。</p></div><span>{project.gridAssets.length} 版</span></div><div className="grid-assets">{project.gridAssets.map((asset) => <button type="button" key={asset.id} className="grid-asset-thumb" onClick={() => setPreview({ kind: 'image', path: asset.path, src: mediaUrl(asset.path, asset.createdAt), title: `宫格合图 · ${formatTime(asset.createdAt)}` })} aria-label="查看宫格合图大图"><img src={mediaUrl(asset.path, asset.createdAt)} alt="" /></button>)}</div></section>}
     {!!project.shots.length && <section className="shots-section"><div className="board-heading"><div><h2>镜头板</h2><p>点击关键帧查看大图；已有视频的镜头可直接播放预览。</p></div><span>{project.shots.length} 镜</span></div><div className="shots-grid">{project.shots.map((shot) => { const imageUrl = shot.imagePath ? mediaUrl(shot.imagePath, shot.updatedAt) : null; const videoUrl = shot.videoPath ? mediaUrl(shot.videoPath, shot.updatedAt) : null; return <article className="shot-card" key={shot.id}><div className="shot-media">{shot.imagePath && imageUrl ? <button type="button" className="shot-image-preview" onClick={() => setPreview({ kind: 'image', path: shot.imagePath!, src: imageUrl, title: shot.title })} aria-label={`查看${shot.title}关键帧大图`}><img src={imageUrl} alt="" /><span className="shot-media-affordance"><ArrowsOutSimple />查看大图</span></button> : <ImageSquare />}{shot.videoPath && videoUrl && <button type="button" className="shot-video-preview" onClick={() => setPreview({ kind: 'video', path: shot.videoPath!, src: videoUrl, title: shot.title })} aria-label={`播放${shot.title}视频`} title="播放视频"><Play weight="fill" /></button>}</div><div className="shot-copy"><div className="shot-meta"><small>镜头 {String(shot.position).padStart(2, '0')}</small><span>{shot.durationSeconds} 秒</span></div><h3>{shot.title}</h3><p>{shot.description}</p><div className="shot-actions"><button onClick={() => enqueue({ type: 'shot-image', entityId: shot.id, payload: {}, force: true })}><ImageSquare />{shot.imagePath ? '重做图' : '生图'}</button><button disabled={!shot.imagePath} onClick={() => enqueue({ type: 'shot-video', entityId: shot.id, payload: {}, force: true })}><VideoCamera />{shot.videoPath ? '重做视频' : '生视频'}</button></div></div></article> })}</div></section>}
     {episode && <section className="finishing-bar"><div><Subtitles /><span><strong>声音与交付</strong><small>{project.dialoguePlans.length ? project.dialoguePlans.map((plan) => `${plan.locale === 'zh-CN' ? '中文' : '英文'}：${plan.status === 'voiced' ? '配音就绪' : plan.status === 'ready' ? '时间轴就绪' : '需重新规划'}`).join(' · ') : '视频完成后先规划对白，再生成配音和字幕'}</small></span></div><div className="finishing-actions"><button disabled={videoJobsActive || !project.shots.length || project.shots.some((shot) => !shot.videoPath)} onClick={() => enqueue({ type: 'dialogue-timing', entityId: episode.id, payload: { locale: 'zh-CN', continueToVoice: true }, force: true })}>规划并生成中文配音</button><button onClick={() => enqueue({ type: 'translate-episode', entityId: episode.id, payload: {}, force: true })}>英文改写</button><button disabled={videoJobsActive || !project.shots.length || project.shots.some((shot) => !shot.videoPath)} onClick={() => enqueue({ type: 'dialogue-timing', entityId: episode.id, payload: { locale: 'en-US', continueToVoice: true }, force: true })}>规划并生成英文配音</button><button className="primary-button" onClick={() => enqueue({ type: 'render-episode', entityId: episode.id, payload: { locale: 'zh-CN' }, force: true })}><Play weight="fill" />渲染中文</button><button className="primary-button" onClick={() => enqueue({ type: 'render-episode', entityId: episode.id, payload: { locale: 'en-US' }, force: true })}><Play weight="fill" />渲染英文</button></div></section>}
     {preview && <MediaViewer preview={preview} onClose={() => setPreview(null)} />}
+    {editingProject && <EditProjectDialog project={project} onClose={() => setEditingProject(false)} onSaved={() => { setEditingProject(false); refresh() }} />}
   </div>
 }
 
@@ -302,10 +308,33 @@ function SystemDiagnostics() {
   return <section className="system-diagnostics"><div className="board-heading"><div><h2>系统诊断</h2><p>主进程、数据库、IPC 与渲染进程的本地日志。</p></div><div className="diagnostic-toolbar"><select value={level} onChange={(event) => setLevel(event.target.value as typeof level)}><option value="all">全部级别</option><option value="warn">警告</option><option value="error">错误</option></select><button type="button" onClick={() => { void window.lumaworks.clearDiagnostics().then(() => setEvents([])) }}>清空日志</button></div></div><div className="diagnostic-list">{events.map((entry) => <div className={`diagnostic-entry ${entry.level}`} key={entry.id}><span>{new Date(entry.timestamp).toLocaleTimeString('zh-CN', { hour12: false })}</span><strong>{entry.phase}</strong><p>{entry.message}</p>{entry.details && <pre>{JSON.stringify(entry.details, null, 2)}</pre>}</div>)}{!events.length && <div className="jobs-empty"><Stack /><span>暂无系统日志</span></div>}</div></section>
 }
 
+const VISUAL_STYLE_PRESETS: Array<{ label: string; value: string; hint: string }> = [
+  { label: '漫剧动漫', value: '日式动漫画风，现代都市漫剧，赛璐璐上色，色彩明快', hint: '推荐：AI 面孔不会被误判为真人，视频过审率最高' },
+  { label: '写实电影', value: 'cinematic realism, contemporary Chinese drama', hint: '照片级人脸极易触发 Seedance 真人审核，导致视频生成被拒' },
+]
+
+function EditProjectDialog({ project, onClose, onSaved }: { project: Project; onClose(): void; onSaved(): void }) {
+  const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string | null>(null)
+  const [visualStyle, setVisualStyle] = useState(project.visualStyle)
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setBusy(true)
+    const form = new FormData(event.currentTarget)
+    try { await window.lumaworks.updateProject({ id: project.id, title: String(form.get('title')), synopsis: String(form.get('synopsis')), visualStyle }); onSaved() }
+    catch (caught) { setMessage(caught instanceof Error ? caught.message : String(caught)); setBusy(false) }
+  }
+  return <div className="dialog-backdrop" role="presentation"><form className="dialog" onSubmit={submit}><button className="dialog-close" type="button" onClick={onClose}><X /></button><p className="muted">项目设定</p><h2>调整故事与风格</h2>
+    <p className="dialog-copy">修改视觉风格后，需要依次重新生成故事圣经、角色定妆照与关键帧，旧的写实素材才会被替换。</p>
+    <Field label="项目名称" name="title" defaultValue={project.title} />
+    <label className="field"><span>故事梗概</span><textarea name="synopsis" required minLength={20} rows={6} defaultValue={project.synopsis} /></label>
+    <div className="field"><span>视觉风格</span><div className="style-presets">{VISUAL_STYLE_PRESETS.map((preset) => <button type="button" key={preset.label} className={visualStyle === preset.value ? 'active' : ''} title={preset.hint} onClick={() => setVisualStyle(preset.value)}>{preset.label}</button>)}</div><input name="visualStyle" required value={visualStyle} onChange={(event) => setVisualStyle(event.target.value)} /><p className="field-help">照片级写实人脸会触发 Seedance「输入图片可能包含真实人物」审核；漫剧/动漫风格可稳定过审。</p></div>
+    {message && <p className="form-error">{message}</p>}
+    <button className="primary-button wide" disabled={busy}>{busy ? <SpinnerGap className="spin" /> : <CheckCircle weight="fill" />}{busy ? '正在保存' : '保存设定'}</button></form></div>
+}
+
 function NewProjectDialog({ onClose, onCreated }: { onClose(): void; onCreated(id: string): void }) {
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState<string | null>(null)
   const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setBusy(true); const form = new FormData(event.currentTarget); try { const id = await window.lumaworks.createProject({ title: String(form.get('title')), synopsis: String(form.get('synopsis')), visualStyle: String(form.get('visualStyle')) }); onCreated(id) } catch (caught) { setMessage(caught instanceof Error ? caught.message : String(caught)); setBusy(false) } }
-  return <div className="dialog-backdrop" role="presentation"><form className="dialog" onSubmit={submit}><button className="dialog-close" type="button" onClick={onClose}><X /></button><p className="muted">创建短剧</p><h2>从一个故事钩子开始</h2><p className="dialog-copy">先写清人物、欲望与冲突。模型会把它展开为可制作的竖屏剧集。</p><Field label="项目名称" name="title" placeholder="例如：她在婚礼前消失了" /><label className="field"><span>故事梗概</span><textarea name="synopsis" required minLength={20} rows={7} placeholder="主角是谁，想得到什么，被什么阻碍，结尾要留下什么悬念？" /></label><Field label="视觉风格" name="visualStyle" defaultValue="cinematic realism, contemporary Chinese drama" />{message && <p className="form-error">{message}</p>}<button className="primary-button wide" disabled={busy}>{busy ? <SpinnerGap className="spin" /> : <MagicWand />}{busy ? '正在创建' : '创建项目'}</button></form></div>
+  return <div className="dialog-backdrop" role="presentation"><form className="dialog" onSubmit={submit}><button className="dialog-close" type="button" onClick={onClose}><X /></button><p className="muted">创建短剧</p><h2>从一个故事钩子开始</h2><p className="dialog-copy">先写清人物、欲望与冲突。模型会把它展开为可制作的竖屏剧集。</p><Field label="项目名称" name="title" placeholder="例如：她在婚礼前消失了" /><label className="field"><span>故事梗概</span><textarea name="synopsis" required minLength={20} rows={7} placeholder="主角是谁，想得到什么，被什么阻碍，结尾要留下什么悬念？" /></label><Field label="视觉风格" name="visualStyle" defaultValue="日式动漫画风，现代都市漫剧，赛璐璐上色，色彩明快" />{message && <p className="form-error">{message}</p>}<button className="primary-button wide" disabled={busy}>{busy ? <SpinnerGap className="spin" /> : <MagicWand />}{busy ? '正在创建' : '创建项目'}</button></form></div>
 }
 
 function PublishDialog({ renders, onClose, onCreated }: { renders: DashboardSnapshot['renders']; onClose(): void; onCreated(): void }) {

@@ -84,12 +84,14 @@ describe('VolcanoSpeechProvider TTS 2.0', () => {
     expect(result.subtitles).toEqual([{ text: '你好。', words: [{ word: '你', startMs: 100, endMs: 400 }, { word: '好。', startMs: 400, endMs: 800 }] }])
   })
 
-  it('does not request subtitles for resources without subtitle support', async () => {
+  it('falls back to the configured resource for voices that match no known pattern', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(successfulStream(), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     const provider = new VolcanoSpeechProvider(() => ({ ...settings, speechResourceId: 'seed-tts-1.0' }))
-    await provider.synthesize({ text: '旧资源', locale: 'zh-CN', outputPath })
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { req_params: { audio_params: Record<string, unknown> } }
+    await provider.synthesize({ text: '自定义音色', locale: 'zh-CN', outputPath, voiceId: 'my_custom_endpoint_voice' })
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    expect((init.headers as Record<string, string>)['X-Api-Resource-Id']).toBe('seed-tts-1.0')
+    const body = JSON.parse(String(init.body)) as { req_params: { audio_params: Record<string, unknown> } }
     expect(body.req_params.audio_params).not.toHaveProperty('enable_subtitle')
   })
 
@@ -131,7 +133,31 @@ describe('VolcanoSpeechProvider TTS 2.0', () => {
     const noCredentials = new VolcanoSpeechProvider(() => ({ ...settings, speechApiKey: '' }))
     await expect(noCredentials.synthesize({ text: '无凭据', locale: 'zh-CN', outputPath })).rejects.toThrow('请配置新版豆包语音 API Key')
 
-    const clone = new VolcanoSpeechProvider(() => ({ ...settings, speechResourceId: 'seed-icl-2.0' }))
-    await expect(clone.synthesize({ text: '复刻音色', locale: 'zh-CN', outputPath, contextTexts: ['开心'] })).rejects.toThrow('声音复刻音色暂不支持')
+    const legacyVoice = new VolcanoSpeechProvider(() => settings)
+    await expect(legacyVoice.synthesize({ text: '旧音色', locale: 'zh-CN', outputPath, voiceId: 'zh_male_beijingxiaoye_moon_bigtts', contextTexts: ['开心'] })).rejects.toThrow('当前音色为 1.0 音色')
+  })
+
+  it('routes TTS 1.0 moon/mars voices to the seed-tts-1.0 resource without subtitles', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(successfulStream(), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const provider = new VolcanoSpeechProvider(() => settings)
+    await provider.synthesize({ text: '旧音色', locale: 'zh-CN', outputPath, voiceId: 'zh_male_beijingxiaoye_moon_bigtts' })
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    expect((init.headers as Record<string, string>)['X-Api-Resource-Id']).toBe('seed-tts-1.0')
+    const body = JSON.parse(String(init.body)) as { req_params: { speaker: string; audio_params: Record<string, unknown> } }
+    expect(body.req_params.speaker).toBe('zh_male_beijingxiaoye_moon_bigtts')
+    expect(body.req_params.audio_params).not.toHaveProperty('enable_subtitle')
+  })
+
+  it('routes S_ voice clones to seed-icl-2.0 with model_type 4 and merges context texts', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(successfulStream(), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const provider = new VolcanoSpeechProvider(() => settings)
+    await provider.synthesize({ text: '复刻音色', locale: 'zh-CN', outputPath, voiceId: 'S_ABCDEFG', contextTexts: ['用平静的语气'] })
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    expect((init.headers as Record<string, string>)['X-Api-Resource-Id']).toBe('seed-icl-2.0')
+    const body = JSON.parse(String(init.body)) as { req_params: { additions: string; audio_params: Record<string, unknown> } }
+    expect(JSON.parse(body.req_params.additions)).toEqual({ context_texts: ['用平静的语气'], model_type: 4 })
+    expect(body.req_params.audio_params).toMatchObject({ enable_subtitle: true })
   })
 })

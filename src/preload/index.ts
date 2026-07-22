@@ -5,6 +5,7 @@ import { IPC } from '@shared/ipc'
 const api: LumaWorksApi = {
   getDashboard: (projectId) => ipcRenderer.invoke(IPC.dashboard, projectId),
   createProject: (input) => ipcRenderer.invoke(IPC.createProject, input),
+  updateProject: (input) => ipcRenderer.invoke(IPC.updateProject, input),
   selectProject: (projectId) => ipcRenderer.invoke(IPC.selectProject, projectId),
   enqueueJob: (input) => ipcRenderer.invoke(IPC.enqueueJob, input),
   cancelJob: (jobId) => ipcRenderer.invoke(IPC.cancelJob, jobId),

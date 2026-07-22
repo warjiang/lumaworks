@@ -1,11 +1,24 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
+import { isLegacyTts1Voice } from '@shared/voices'
 import type { ProviderSettings, ProviderTrace, SpeechProvider, SpeechSentenceTiming } from './types'
 
 const SPEECH_ENDPOINT = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional'
 const TTS_COMPLETE_CODE = 20_000_000
 const SUBTITLE_CAPABLE_RESOURCES = new Set(['seed-tts-2.0', 'seed-icl-2.0'])
+
+/**
+ * Route a voice ID to its required API resource ID, per the official voice
+ * list: uranus/saturn voices are TTS 2.0, moon/mars voices are retired TTS
+ * 1.0 (kept only so legacy data degrades gracefully), S_* clones are ICL 2.0.
+ */
+export function resourceForVoice(voiceId: string, configuredResourceId: string): string {
+  if (voiceId.startsWith('S_')) return 'seed-icl-2.0'
+  if (/_uranus_bigtts$/i.test(voiceId) || /^saturn_/i.test(voiceId)) return 'seed-tts-2.0'
+  if (isLegacyTts1Voice(voiceId) || /^ICL_/i.test(voiceId)) return 'seed-tts-1.0'
+  return configuredResourceId
+}
 
 interface SpeechSentencePayload {
   text?: string
@@ -49,14 +62,21 @@ export function isVoiceConfigurationError(error: unknown): boolean {
   return /speaker|voice|音色|音库|发音人|resource (?:id )?(?:is )?mismatched|resource.*speaker|invalid.*resource/i.test(error.message)
 }
 
-function speechErrorMessage(input: { status?: number; code?: number; message?: string; logId?: string }): string {
+function speechErrorMessage(input: { status?: number; code?: number; message?: string; logId?: string; resourceId?: string }): string {
   const parts = [
     input.status ? `HTTP ${input.status}` : undefined,
     input.code !== undefined ? `code ${input.code}` : undefined,
     input.message?.trim() || undefined,
     input.logId ? `LogID ${input.logId}` : undefined,
   ].filter(Boolean)
-  return `豆包语音合成失败：${parts.join(' / ') || '未知错误'}`
+  const base = `豆包语音合成失败：${parts.join(' / ') || '未知错误'}`
+  if (input.status === 403) {
+    return `${base}。该音色未在你的火山引擎语音应用中开通（1.0 moon/mars 音色不属于新版控制台的语音合成 2.0 服务），请在角色音色中改用 2.0（uranus）音色或点击「重新分配音色」`
+  }
+  if (input.code === 55_000_000 || /resource.*mismatch/i.test(input.message ?? '')) {
+    return `${base}。音色与资源 ID 不匹配：uranus 音色需 seed-tts-2.0，moon/mars 音色需 seed-tts-1.0，S_ 复刻音色需 seed-icl-2.0`
+  }
+  return base
 }
 
 function parsePayloadLine(line: string): SpeechStreamPayload {
@@ -80,10 +100,10 @@ function selectedVoice(config: ProviderSettings, locale: 'zh-CN' | 'en-US', over
   return voiceId
 }
 
-function requestHeaders(config: ProviderSettings, requestId: string): { headers: Record<string, string>; authMode: 'api-key' | 'legacy-app' } {
+function requestHeaders(config: ProviderSettings, requestId: string, resourceId: string): { headers: Record<string, string>; authMode: 'api-key' | 'legacy-app' } {
   const common = {
     'Content-Type': 'application/json',
-    'X-Api-Resource-Id': config.speechResourceId.trim(),
+    'X-Api-Resource-Id': resourceId,
     'X-Api-Request-Id': requestId,
     'X-Control-Require-Usage-Tokens-Return': '*',
   }
@@ -110,15 +130,18 @@ export class VolcanoSpeechProvider implements SpeechProvider {
     const config = this.settings()
     if (!input.text.trim()) throw new Error('待合成文本不能为空')
     const requestId = randomUUID()
-    const { headers, authMode } = requestHeaders(config, requestId)
     const voiceId = selectedVoice(config, input.locale, input.voiceId)
-    const resourceId = config.speechResourceId.trim()
+    const resourceId = resourceForVoice(voiceId, config.speechResourceId.trim())
+    const { headers, authMode } = requestHeaders(config, requestId, resourceId)
     const contextTexts = (input.contextTexts ?? []).map((value) => value.trim()).filter(Boolean)
-    if (contextTexts.length && resourceId !== 'seed-tts-2.0') {
-      throw new Error('语音指令 context_texts 仅支持标准音色资源 seed-tts-2.0，声音复刻音色暂不支持')
+    if (contextTexts.length && resourceId !== 'seed-tts-2.0' && resourceId !== 'seed-icl-2.0') {
+      throw new Error('语音指令 context_texts 仅支持豆包语音合成 2.0 音色（uranus）与声音复刻 2.0，当前音色为 1.0 音色')
     }
     const subtitleEnabled = input.enableSubtitle !== false && SUBTITLE_CAPABLE_RESOURCES.has(resourceId)
-    const additions = contextTexts.length ? JSON.stringify({ context_texts: contextTexts }) : undefined
+    const additionsObject: Record<string, unknown> = {}
+    if (contextTexts.length) additionsObject.context_texts = contextTexts
+    if (resourceId === 'seed-icl-2.0') additionsObject.model_type = 4
+    const additions = Object.keys(additionsObject).length ? JSON.stringify(additionsObject) : undefined
     const body = {
       req_params: {
         text: input.text,

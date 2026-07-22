@@ -257,8 +257,21 @@ export function parseSeedanceTask(payload: unknown, expectedId?: string): Seedan
   return { ...payload, id, status: status as SeedanceTaskStatus, error, content } as SeedanceTask
 }
 
+/** Seedance i2v rejects first frames that look like real people — including
+ * photorealistic AI-generated faces (InputImageSensitiveContentDetected). */
+export function isRealPersonRejection(code?: string, message?: string): boolean {
+  return /InputImageSensitiveContentDetected/i.test(code ?? '')
+    || /may contain real person/i.test(message ?? '')
+}
+
+export function realPersonFailureMessage(raw?: string): string {
+  const requestId = raw?.match(/request id:\s*([^\s]+)/i)?.[1]
+  return `Seedance 拒绝生成：首帧图片被判定为可能包含真实人物面孔（AI 生成的高写实面孔同样会触发）。请重做该镜头关键帧——电影剧照感、略带风格化的人像更容易通过审核${requestId ? `（Request ID：${requestId}）` : ''}`
+}
+
 export function seedanceFailureMessage(task: SeedanceTask): string {
   const detail = [task.error?.code, task.error?.message].filter(Boolean).join(': ')
+  if (isRealPersonRejection(task.error?.code, task.error?.message)) return realPersonFailureMessage(task.error?.message)
   const copyrightViolation = /OutputVideoSensitiveContentDetected\.PolicyViolation/i.test(task.error?.code ?? '')
     || /copyright restrictions/i.test(task.error?.message ?? '')
   if (copyrightViolation) {
@@ -273,5 +286,7 @@ export function seedanceFailureMessage(task: SeedanceTask): string {
 }
 
 export function isSeedancePolicyViolation(task: SeedanceTask): boolean {
-  return /PolicyViolation/i.test(task.error?.code ?? '') || /copyright restrictions/i.test(task.error?.message ?? '')
+  return isRealPersonRejection(task.error?.code, task.error?.message)
+    || /PolicyViolation/i.test(task.error?.code ?? '')
+    || /copyright restrictions/i.test(task.error?.message ?? '')
 }

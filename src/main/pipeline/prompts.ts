@@ -1,5 +1,11 @@
 import { z } from 'zod'
 
+/** 全链路统一的美术风格锚点：漫剧（动漫）风格。
+ * Seedance 的图生视频入口会拦截照片级写实人脸（AI 生成的写实面孔同样触发
+ * InputImageSensitiveContentDetected），明确的动漫/插画风格是稳定过审的前提；
+ * 角色定妆、关键帧、宫格合图必须共用同一段描述，避免风格漂移。 */
+export const COMIC_ART_STYLE = '日式动漫画风，赛璐璐上色，线条清晰干净，色彩明快，non-photorealistic illustrated anime style'
+
 export const storyBibleSchema = z.object({
   world: z.string().trim().min(1), visualDirection: z.string().trim().min(1), logline: z.string().trim().min(1),
   characters: z.array(z.object({ name: z.string().trim().min(1), role: z.string().trim().min(1), appearance: z.string().trim().min(1), personality: z.string().trim().min(1), voice: z.string().trim().min(1) })).min(1).max(8),
@@ -56,7 +62,7 @@ export const episodeScriptSchema = z.object({
 
 export const STORY_BIBLE_JSON_CONTRACT = `{
   "world": "故事发生的时代、城市、社会规则和氛围，非空字符串",
-  "visualDirection": "统一的真人影视视觉基调、色彩、光线和摄影语言，非空字符串",
+  "visualDirection": "统一的动漫视觉基调、色彩、光线和构图语言，非空字符串",
   "logline": "一句话核心故事，非空字符串",
   "characters": [
     {
@@ -186,7 +192,7 @@ const GRID_CELL_POSITIONS = ['左上', '右上', '左下', '右下'] as const
 
 export function shotGridImagePrompt(input: { shots: Array<{ imagePrompt: string }>; referenceCount: number }): string {
   const cells = input.shots.map((shot, index) => `格${index + 1}（${GRID_CELL_POSITIONS[index] ?? ''}）：${shot.imagePrompt}`).join('\n')
-  return `一张 2x2 宫格布局的竖屏短剧关键帧合图：exactly 4 visible panels arranged in a uniform 2x2 grid，四格等分、边界清晰，consistent art style，真人电影质感。
+  return `一张 2x2 宫格布局的竖屏短剧关键帧合图：exactly 4 visible panels arranged in a uniform 2x2 grid，四格等分、边界清晰，consistent art style，${COMIC_ART_STYLE}。
 ${input.referenceCount ? `随附 ${input.referenceCount} 张参考图（参考图1至参考图${input.referenceCount}）为本剧角色定妆照，对应角色必须与参考图的面部特征、发型、服饰完全一致，不得换脸或改变造型。\n` : ''}${cells}
 要求：四格共享统一的光线方向、色调与质感；每格独立成画，呈现该镜头动作即将发生的起始瞬间，静态构图清晰；no merged panels, no missing panels；画面禁止任何文字、编号、水印、Logo；原创人物面孔，不模仿任何真实艺人或现有影视角色。`
 }
@@ -243,7 +249,7 @@ ${EPISODE_DETAIL_JSON_CONTRACT}`
 const ORIGINALITY_RULES = `只保留来源材料的宽泛题材、抽象主题和一般性情绪；不得换名复刻。不得复用来源标题、角色名、地点、组织、台词、标志性设定、独特情节组合或场景顺序。不得模仿艺人、现有角色、品牌、艺术家或特定作品风格。`
 
 export function storyFoundationPrompt(input: { title: string; synopsis: string; visualStyle: string }): string {
-  return `为原创竖屏真人短剧设计一个精炼的故事基底。\n来源标题：${input.title}\n来源材料：${input.synopsis}\n期望视觉方向：${input.visualStyle}\n${ORIGINALITY_RULES}\n必须重建故事世界、核心冲突成因和视觉语言。只返回：{"world":"原创世界与社会规则","visualDirection":"原创真人影视视觉基调","logline":"原创的一句话核心故事"}`
+  return `为原创竖屏漫剧（动漫短剧）设计一个精炼的故事基底。\n来源标题：${input.title}\n来源材料：${input.synopsis}\n期望视觉方向：${input.visualStyle}\n${ORIGINALITY_RULES}\n必须重建故事世界、核心冲突成因和视觉语言。只返回：{"world":"原创世界与社会规则","visualDirection":"原创动漫视觉基调","logline":"原创的一句话核心故事"}`
 }
 
 export function storyCharactersPrompt(input: { title: string; synopsis: string; foundation: unknown }): string {

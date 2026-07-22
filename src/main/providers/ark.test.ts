@@ -191,6 +191,29 @@ describe('Ark Seedance API', () => {
     await expect(provider.generateVideo({ prompt: 'move', imagePath: testImagePath })).rejects.toMatchObject({ retryable: false })
   })
 
+  it('turns real-person input rejections into an actionable non-retryable message', async () => {
+    const task = parseSeedanceTask({
+      id: 'cgt-face', status: 'failed',
+      error: {
+        code: 'InputImageSensitiveContentDetected.PrivacyInformation',
+        message: 'The request failed because the input image may contain real person. Request id: req-face-1',
+      },
+    })
+    expect(isSeedancePolicyViolation(task)).toBe(true)
+    expect(seedanceFailureMessage(task)).toContain('真实人物面孔')
+    expect(seedanceFailureMessage(task)).toContain('Request ID：req-face-1')
+
+    await writeFile(testImagePath, new Uint8Array([137, 80, 78, 71]))
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        return new Response(JSON.stringify({ error: { code: 'InputImageSensitiveContentDetected.PrivacyInformation', message: 'The request failed because the input image may contain real person. Request id: req-face-2' } }), { status: 400 })
+      }
+      throw new Error('unexpected poll')
+    }))
+    const provider = new ArkProvider(() => baseSettings, undefined, { videoPollIntervalMs: 0, videoMaxPolls: 1 })
+    await expect(provider.generateVideo({ prompt: 'move', imagePath: testImagePath })).rejects.toMatchObject({ retryable: false, message: expect.stringContaining('Request ID：req-face-2') })
+  })
+
   it('builds official first-frame and first/last-frame content roles', () => {
     const first = buildSeedanceRequest({ model: baseSettings.seedanceModel, prompt: 'move', firstFrameUrl: 'data:image/png;base64,AA==', durationSeconds: 3 })
     expect(first.body).toMatchObject({ resolution: '1080p', ratio: '9:16', duration: 4, generate_audio: false, watermark: false })

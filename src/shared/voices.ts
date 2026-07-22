@@ -1,5 +1,14 @@
 import type { VoicePresetId } from './domain'
 
+const LEGACY_TTS1_VOICE_PATTERN = /_((emo_v2_)?(moon|mars)|conversation_wvae)_bigtts$/i
+
+/** Retired 豆包语音合成 1.0 voices (moon/mars/emo_v2/wvae). They require the
+ * separately-provisioned seed-tts-1.0 service and lack subtitle timestamps,
+ * so LumaWorks migrates away from them everywhere. */
+export function isLegacyTts1Voice(voiceId: string | null | undefined): boolean {
+  return Boolean(voiceId) && LEGACY_TTS1_VOICE_PATTERN.test(voiceId!)
+}
+
 export interface VoicePreset {
   id: VoicePresetId
   label: string
@@ -8,15 +17,19 @@ export interface VoicePreset {
   enVoiceId: string
 }
 
+// All presets use 豆包语音合成模型 2.0 (uranus) voices: they work with the
+// seed-tts-2.0 resource, support context_texts emotion control, and return
+// word-level subtitle timings. The retired 1.0 (moon/mars) voices are still
+// routed correctly by resourceForVoice for legacy data.
 export const VOICE_PRESETS: VoicePreset[] = [
-  { id: 'narrator', label: '旁白', description: '稳定、清晰、中性叙事', zhVoiceId: 'zh_female_vv_uranus_bigtts', enVoiceId: 'en_female_dacey_uranus_bigtts' },
+  { id: 'narrator', label: '旁白', description: '稳定、清晰、中性叙事', zhVoiceId: 'zh_male_jieshuoxiaoming_uranus_bigtts', enVoiceId: 'en_male_tim_uranus_bigtts' },
   { id: 'young-female', label: '青年女声', description: '自然、克制、年轻', zhVoiceId: 'zh_female_vv_uranus_bigtts', enVoiceId: 'en_female_dacey_uranus_bigtts' },
-  { id: 'mature-female', label: '成熟女声', description: '沉稳、有阅历', zhVoiceId: 'zh_female_wanwanxiaohe_moon_bigtts', enVoiceId: 'en_female_sarah_mars_bigtts' },
-  { id: 'young-male', label: '青年男声', description: '清朗、自然、年轻', zhVoiceId: 'zh_male_yangguangqingnian_moon_bigtts', enVoiceId: 'en_male_corey_mars_bigtts' },
-  { id: 'mature-male', label: '成熟男声', description: '低沉、稳重、有控制力', zhVoiceId: 'zh_male_beijingxiaoye_moon_bigtts', enVoiceId: 'en_male_adam_mars_bigtts' },
-  { id: 'elder-male', label: '老年男声', description: '苍劲、缓慢、有威严', zhVoiceId: 'zh_male_jieshuoxiaoming_moon_bigtts', enVoiceId: 'en_male_adam_mars_bigtts' },
-  { id: 'elder-female', label: '老年女声', description: '温厚、缓慢、有年龄感', zhVoiceId: 'zh_female_wanwanxiaohe_moon_bigtts', enVoiceId: 'en_female_sarah_mars_bigtts' },
-  { id: 'cold-villain', label: '冷峻反派', description: '冷静、压迫、低饱和情绪', zhVoiceId: 'zh_male_beijingxiaoye_moon_bigtts', enVoiceId: 'en_male_corey_mars_bigtts' },
+  { id: 'mature-female', label: '成熟女声', description: '沉稳、有阅历', zhVoiceId: 'zh_female_cancan_uranus_bigtts', enVoiceId: 'en_female_stokie_uranus_bigtts' },
+  { id: 'young-male', label: '青年男声', description: '清朗、自然、年轻', zhVoiceId: 'zh_male_liufei_uranus_bigtts', enVoiceId: 'en_male_tim_uranus_bigtts' },
+  { id: 'mature-male', label: '成熟男声', description: '低沉、稳重、有控制力', zhVoiceId: 'zh_male_dayi_uranus_bigtts', enVoiceId: 'en_male_tim_uranus_bigtts' },
+  { id: 'elder-male', label: '老年男声', description: '苍劲、缓慢、有威严', zhVoiceId: 'zh_male_yizhipiannan_uranus_bigtts', enVoiceId: 'en_male_tim_uranus_bigtts' },
+  { id: 'elder-female', label: '老年女声', description: '温厚、缓慢、有年龄感', zhVoiceId: 'zh_female_wenroumama_uranus_bigtts', enVoiceId: 'en_female_stokie_uranus_bigtts' },
+  { id: 'cold-villain', label: '冷峻反派', description: '冷静、压迫、低饱和情绪', zhVoiceId: 'zh_male_m191_uranus_bigtts', enVoiceId: 'en_male_tim_uranus_bigtts' },
 ]
 
 export function voicePreset(id: VoicePresetId): VoicePreset {

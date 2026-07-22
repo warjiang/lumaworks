@@ -211,7 +211,7 @@ export interface PublishDraft {
 
 export interface DashboardSnapshot {
   projects: Project[]
-  activeProject: (Project & { episodes: Episode[]; shots: Shot[]; characters: CharacterVoice[]; dialoguePlans: DialoguePlanSummary[] }) | null
+  activeProject: (Project & { episodes: Episode[]; shots: Shot[]; characters: CharacterVoice[]; dialoguePlans: DialoguePlanSummary[]; gridAssets: Array<{ id: string; path: string; createdAt: string }> }) | null
   jobs: Job[]
   publishDrafts: PublishDraft[]
   renders: Array<{ id: string; episodeId: string; locale: string; status: string; videoPath: string | null; coverPath: string | null; createdAt: string }>
@@ -234,6 +234,14 @@ export const createProjectInputSchema = z.object({
   visualStyle: z.string().trim().min(1).default('cinematic realism'),
 })
 export type CreateProjectInput = z.infer<typeof createProjectInputSchema>
+
+export const updateProjectInputSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().trim().min(1).max(100),
+  synopsis: z.string().trim().min(20).max(20_000),
+  visualStyle: z.string().trim().min(1).max(500),
+})
+export type UpdateProjectInput = z.infer<typeof updateProjectInputSchema>
 
 export const enqueueJobInputSchema = z.object({
   type: jobTypeSchema,

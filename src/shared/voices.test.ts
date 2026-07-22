@@ -1,7 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { inferVoicePreset, voicePreset } from './voices'
+import { inferVoicePreset, isLegacyTts1Voice, VOICE_PRESETS, voicePreset } from './voices'
 
 describe('voice presets', () => {
+  it('only ships TTS 2.0 (uranus) voices so every preset works with seed-tts-2.0 and subtitle timings', () => {
+    for (const preset of VOICE_PRESETS) {
+      expect(preset.zhVoiceId).toMatch(/_uranus_bigtts$/)
+      expect(preset.enVoiceId).toMatch(/_uranus_bigtts$/)
+      expect(isLegacyTts1Voice(preset.zhVoiceId)).toBe(false)
+      expect(isLegacyTts1Voice(preset.enVoiceId)).toBe(false)
+    }
+  })
+
+  it('detects every retired 1.0 voice family and nothing else', () => {
+    for (const legacy of ['zh_male_beijingxiaoye_moon_bigtts', 'zh_female_wanwanxiaohe_moon_bigtts', 'zh_male_lengkugege_emo_v2_mars_bigtts', 'en_male_corey_emo_v2_mars_bigtts', 'en_male_jason_conversation_wvae_bigtts']) {
+      expect(isLegacyTts1Voice(legacy)).toBe(true)
+    }
+    for (const modern of ['zh_female_vv_uranus_bigtts', 'zh_male_liufei_uranus_bigtts', 'en_male_tim_uranus_bigtts', 'S_ABCDEFG', 'saturn_custom']) {
+      expect(isLegacyTts1Voice(modern)).toBe(false)
+    }
+    expect(isLegacyTts1Voice(null)).toBe(false)
+    expect(isLegacyTts1Voice('')).toBe(false)
+  })
+
   it('assigns role-appropriate presets and distinct primary alternatives', () => {
     const used = new Set<ReturnType<typeof inferVoicePreset>>()
     const heroine = inferVoicePreset({ name: '沈若棠', role: '27岁女主角', description: '', voiceDescription: '克制的青年女声' }, used); used.add(heroine)

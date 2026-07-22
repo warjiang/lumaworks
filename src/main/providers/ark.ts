@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { extname } from 'node:path'
 import { NonRetryableError } from '../errors'
-import { buildSeedanceRequest, buildSeedreamRequest, extractSeedreamUrl, isSeedancePolicyViolation, parseSeedanceTask, seedanceFailureMessage, type SeedanceTask, type SeedreamResponse } from './ark-contracts'
+import { buildSeedanceRequest, buildSeedreamRequest, extractSeedreamUrl, isRealPersonRejection, isSeedancePolicyViolation, parseSeedanceTask, realPersonFailureMessage, seedanceFailureMessage, type SeedanceTask, type SeedreamResponse } from './ark-contracts'
 import type { ImageProvider, ProgressReporter, ProviderSettings, ProviderTrace, TextProvider, VideoProvider } from './types'
 
 const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
@@ -409,7 +409,13 @@ export class ArkProvider implements TextProvider, ImageProvider, VideoProvider {
     })
     const created = await requestJson<{ id?: string }>(`${ARK_BASE_URL}/contents/generations/tasks`, {
       method: 'POST', headers: this.headers(), body: JSON.stringify(request.body),
-    }, 120_000, this.trace, signal)
+    }, 120_000, this.trace, signal).catch((error: unknown) => {
+      // Creation-time moderation rejections (e.g. "input image may contain real
+      // person") arrive as HTTP 400 with an English message; translate them into
+      // an actionable non-retryable error.
+      if (isRealPersonRejection(undefined, error instanceof Error ? error.message : String(error))) throw new NonRetryableError(realPersonFailureMessage(error instanceof Error ? error.message : undefined))
+      throw error
+    })
     if (!created.id) throw new Error('Seedance 没有返回任务 ID')
     this.trace?.({ level: 'info', phase: 'video.submitted', message: 'Seedance 任务已创建', details: { externalId: created.id } })
     report?.({ message: '视频任务已提交，等待 Seedance 处理' })

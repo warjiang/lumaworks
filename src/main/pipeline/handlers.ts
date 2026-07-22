@@ -14,7 +14,7 @@ import { mapConcurrent } from '../utils/concurrency'
 import { buildClipTimeline, planDialogue, timingFingerprint } from './timing'
 import { buildTimedChunks } from './alignment'
 import { chunksForSubtitle } from '../render/ffmpeg'
-import { episodeDetailPrompt, episodeDetailSchema, episodePlanPrompt, episodePlanSchema, episodeReviewPrompt, episodeReviewSchema, episodeRevisionPrompt, episodeScriptSchema, shotGridImagePrompt, storyCharactersPrompt, storyCharactersSchema, storyEpisodesPrompt, storyEpisodesSchema, storyFoundationPrompt, storyFoundationSchema, storyLocationsPrompt, storyLocationsSchema, storyBibleSchema } from './prompts'
+import { COMIC_ART_STYLE, episodeDetailPrompt, episodeDetailSchema, episodePlanPrompt, episodePlanSchema, episodeReviewPrompt, episodeReviewSchema, episodeRevisionPrompt, episodeScriptSchema, shotGridImagePrompt, storyCharactersPrompt, storyCharactersSchema, storyEpisodesPrompt, storyEpisodesSchema, storyFoundationPrompt, storyFoundationSchema, storyLocationsPrompt, storyLocationsSchema, storyBibleSchema } from './prompts'
 
 const translatedLinesSchema = z.object({ lines: z.array(z.object({ speaker: z.string(), text: z.string(), shotPosition: z.number().int().positive().optional(), startMs: z.number().int(), endMs: z.number().int() })) })
 const shortenedLineSchema = z.object({ text: z.string().trim().min(1) })
@@ -161,7 +161,7 @@ export function registerPipelineHandlers(input: {
     stage('image.generate', '正在生成分镜关键帧', { references: referencePaths.length, characters: shot.characters })
     const consistency = referencePaths.length ? `\n随附 ${referencePaths.length} 张参考图（参考图1至参考图${referencePaths.length}）为本剧角色的定妆照，对应角色必须与参考图的面部特征、发型、服饰完全一致，不得换脸或改变造型` : ''
     const firstFrame = '\n这是视频的首帧画面：呈现动作即将发生的起始瞬间而非完成态，静态构图清晰，主体突出'
-    const result = await ark.withTrace(trace).generateImage({ prompt: `${shot.imagePrompt}${consistency}${firstFrame}\n真人电影质感，原创人物面孔且不模仿任何真实艺人或现有影视角色，角色一致，竖屏9:16，无品牌 Logo、无文字无水印`, aspectRatio: '9:16', referencePaths, signal })
+    const result = await ark.withTrace(trace).generateImage({ prompt: `${shot.imagePrompt}${consistency}${firstFrame}\n${COMIC_ART_STYLE}，原创人物面孔且不模仿任何真实艺人或现有影视角色，角色一致，竖屏9:16，无品牌 Logo、无文字无水印`, aspectRatio: '9:16', referencePaths, signal })
     stage('media.download', '正在下载并保存图片')
     const path = await media.download(project.id, 'images', result.url, { signal, onProgress: (received, total) => { if (total) progress(received / total * 100, '正在下载图片', { current: received, total, unit: 'bytes' }) } }); db.updateShotMedia(shot.id, 'image', path); db.addAsset({ projectId: project.id, entityType: 'shot', entityId: shot.id, kind: 'storyboard-image', path, sourceUrl: result.url })
     let nextJobId: string | undefined
@@ -227,7 +227,7 @@ export function registerPipelineHandlers(input: {
     const data = payload(job.payloadJson)
     const prompt = typeof data.prompt === 'string' && data.prompt.trim()
       ? data.prompt.trim()
-      : `原创竖屏短剧角色定妆参考照：${character.name}（${character.role}）。${character.description}\n正面半身肖像，直视镜头，中性表情，纯色浅灰背景，均匀柔光，真人电影照片质感，皮肤与毛发细节真实，竖屏9:16，无文字无水印，不模仿任何真实艺人或现有影视角色`
+      : `原创竖屏短剧角色定妆参考照：${character.name}（${character.role}）。${character.description}\n正面半身肖像，直视镜头，中性表情，纯色浅灰背景，均匀柔光，${COMIC_ART_STYLE}，发型与瞳色特征鲜明易辨认，竖屏9:16，无文字无水印，不模仿任何真实艺人或现有影视角色`
     stage('image.generate', '正在生成角色定妆照', { character: character.name })
     const result = await ark.withTrace(trace).generateImage({ prompt, aspectRatio: '9:16', signal })
     stage('media.download', '正在下载定妆照')
